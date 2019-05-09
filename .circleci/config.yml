@@ -1,0 +1,15 @@
+version: 2.0
+jobs:
+  build:
+    docker:
+    - image: typelead/eta:latest
+    steps:
+    - checkout
+    - run: etlas update
+    - run: etlas test
+
+workflows:
+  version: 2
+  full_cycle:
+    jobs:
+    - build

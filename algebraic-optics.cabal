@@ -1,0 +1,48 @@
+name:                algebraic-optics
+version:             0.1.0.0
+license:             BSD3
+license-file:        LICENSE
+author:              Rahul Muttineni
+maintainer:          rahulmutt@gmail.com
+category:            Control
+build-type:          Simple
+extra-source-files:  ChangeLog.md
+cabal-version:       1.12
+
+library
+  exposed-modules:     Algebraic.Optics
+  build-depends:       base >=4.11
+                     , mtl
+                     , indexed
+                     , indexed-extras
+  hs-source-dirs:      src
+  ghc-options:         -Wall -Werror -Wno-name-shadowing -Wno-orphans
+  default-language:    Haskell2010
+  default-extensions:  RankNTypes
+                       FlexibleInstances
+                       TypeOperators
+                       MultiParamTypeClasses
+                       ScopedTypeVariables
+                       LambdaCase
+                       GADTs
+                       DataKinds
+                       FlexibleContexts
+                       BangPatterns
+                       FunctionalDependencies
+                       UndecidableInstances
+
+test-suite unit-tests
+  type:                exitcode-stdio-1.0
+  main-is:             Test.hs
+  build-depends:       base >=4.11
+                     , algebraic-optics
+                     , tasty
+                     , tasty-hunit
+  hs-source-dirs:      test
+  ghc-options:         -Wall -Werror -Wno-name-shadowing
+  default-language:    Haskell2010
+  default-extensions:  RankNTypes
+                       FlexibleContexts
+                       ExistentialQuantification
+                       RecordWildCards
+                       NamedFieldPuns
