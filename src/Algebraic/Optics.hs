@@ -1,28 +1,25 @@
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Algebraic Lens
+-- Module      :  Algebraic.Optics
 -- Copyright   :  (C) 2019 Rahul Muttineni
 -- License     :  BSD-style (see the file LICENSE)
 -- Maintainer  :  Rahul Muttineni <rahulmutt@gmail.com>
 -- Stability   :  experimental
 -- Portability :  non-portable
---
 ----------------------------------------------------------------------------
 module Algebraic.Optics where
 
 import Control.Arrow
 
 import Control.Monad.Reader
-import Control.Monad.Indexed
-import Control.Monad.Indexed.State
 import Data.IORef
 import Data.Int
-import Data.Typeable
 import Data.Monoid
 import Data.Functor.Identity
-import Data.Functor.Const
 import Data.Traversable
-import GHC.TypeLits hiding (Nat)
+import Algebraic.Optics.Equality
+import Algebraic.Optics.Internal.Monoid1
+import Algebraic.Optics.Internal.Indexed
 
 infixr 4 .~, .~!, %~, %~!
 infixl 8 ^., ^.!, ^.., ^..!, ^?, ^?!, ^@.., ^@..!
@@ -144,55 +141,6 @@ _Just = prism Just (maybe (Left Nothing) Right)
 _Nothing :: APrism' (Maybe a) ()
 _Nothing = prism' (const Nothing) (maybe (Just ()) (const Nothing))
 
--- Typeclasses & Instances required for implementation
-
-class Monoid1 m where
-    mempty1 :: m a
-    mappend1 :: m a -> m a -> m a
-
-instance (TypeError ('Text "The function expects a Lens, but you supplied a Prism or Traversal")) 
-    => Monoid1 Identity where
-    mempty1 = undefined
-    mappend1 = undefined
-
-instance Monoid1 Endo where
-    mempty1 = mempty
-    mappend1 = mappend
-
-instance Monoid1 First where
-    mempty1 = mempty
-    mappend1 = mappend
-
-instance (Monoid m) => Monoid1 (Const m) where
-    mempty1 = mempty
-    mappend1 = mappend
-
-istate :: (IxMonadState m) => (s -> (a, t)) -> m s t a
-istate f = iget >>>= (\s -> let (a, t) = f s in iput t >>>= (const (ireturn a)))
-
-execIxState :: IxState s t a -> s -> t
-execIxState ixs = snd . runIxState ixs
-
-evalIxState :: IxState s t a -> s -> a
-evalIxState ixs = fst . runIxState ixs
-
-execIxStateT :: (Functor m) => IxStateT m s t a -> s -> m t
-execIxStateT ixs = fmap snd . runIxStateT ixs
-
-evalIxStateT :: (Functor m) => IxStateT m s t a -> s -> m a
-evalIxStateT ixs = fmap fst . runIxStateT ixs
-
-class (Monad m, IxMonad n) => IxMonadLift n m | n -> m, m -> n where
-    ilift :: m a -> n i i a
-
-instance (Monad m) => IxMonadLift (IxStateT m) m where
-    ilift ma = IxStateT $ \i -> ma >>= (\a -> return (a, i))
-
-class IxMonadReader r m where
-    iask :: m j j r
-
-instance (MonadReader r m) => IxMonadReader r (IxStateT m) where
-    iask = IxStateT $ \j -> ask >>= (\r -> return (r, j))
 
 fromVL :: (forall f. (Functor f) => (a -> f b) -> (s -> f t)) -> ALens s t a b
 fromVL lens sm = istate (lens (runIxState sm))
@@ -202,31 +150,24 @@ fromVL lens sm = istate (lens (runIxState sm))
 lens :: (s -> a) -> (s -> b -> t) -> ALens s t a b
 lens getter setter sm = istate (\s -> second (setter s) (runIxState sm (getter s)))
 
-mlens :: forall m s t a b. (Typeable a, Typeable b, Typeable s, Typeable t) 
-      => (s -> m a) -> (s -> a -> a -> m s) -> (s -> b -> m t) -> ALensM m s t a b
+mlens :: forall m s t a b. HasEquality s t a b => (s -> m a) -> (s -> a -> a -> m s) -> (s -> b -> m t) -> ALensM m s t a b
 mlens getter msetter psetter sm = 
     iget >>>= (\s -> 
     ilift (getter s) >>>= (\a ->
     ilift (runIxStateT sm a) >>>= (\(r, b) ->
-    case eqab of
-        Just Refl -> 
-            case eqst of
-                Just Refl -> 
-                    ilift (msetter s a b) >>>= (\t ->
-                    iput t >>>= (\_ ->
-                    ireturn r))
-                Nothing -> error "when a ~ b, s /~ t"
+    case eq of
+        Just Equality -> 
+            ilift (msetter s a b) >>>= (\t ->
+            iput t >>>= (\_ ->
+            ireturn r))
         Nothing -> 
             ilift (psetter s b) >>>= (\t ->
             iput t >>>= (\_ ->
             ireturn r)))))
-    where eqab :: Maybe (a :~: b)
-          eqab = eqT
+    where eq :: Maybe (Equality s t a b)
+          eq = hasEquality
 
-          eqst :: Maybe (s :~: t)
-          eqst = eqT
-
-mlens' :: forall m s t a b. (s -> m a) -> (s -> a -> b -> m t) -> ALensM m s t a b
+mlens' :: (s -> m a) -> (s -> a -> b -> m t) -> ALensM m s t a b
 mlens' getter setter sm = 
     iget >>>= (\s -> 
     ilift (getter s) >>>= (\a ->
@@ -249,8 +190,7 @@ mrefLensEq = mrefLens (==)
 mrefLensNoEq :: (s -> IORef a) -> ALensIO' s a
 mrefLensNoEq = mrefLens (\_ _ -> False)
 
-prefLens :: forall s t a b. (Typeable s, Typeable t, Typeable a, Typeable b) 
-         => (a -> a -> Bool) -> (s -> IORef a) -> (s -> IORef b -> t) -> ALensIO s t a b
+prefLens :: HasEquality s t a b => (a -> a -> Bool) -> (s -> IORef a) -> (s -> IORef b -> t) -> ALensIO s t a b
 prefLens equals f g = mlens getter msetter psetter
    where getter s = liftIO (readIORef (f s))
          msetter s a b = do
@@ -261,10 +201,8 @@ prefLens equals f g = mlens getter msetter psetter
             ref <- liftIO (newIORef b)
             return (g s ref)
 
-prefLensEq :: forall s t a b. (Typeable s, Typeable t, Typeable a, Typeable b, Eq a)
-           => (s -> IORef a) -> (s -> IORef b -> t) -> ALensIO s t a b
+prefLensEq :: (HasEquality s t a b, Eq a) => (s -> IORef a) -> (s -> IORef b -> t) -> ALensIO s t a b
 prefLensEq = prefLens (==)
 
-prefLensNoEq :: forall s t a b. (Typeable s, Typeable t, Typeable a, Typeable b) 
-             => (s -> IORef a) -> (s -> IORef b -> t) -> ALensIO s t a b
+prefLensNoEq :: HasEquality s t a b => (s -> IORef a) -> (s -> IORef b -> t) -> ALensIO s t a b
 prefLensNoEq = prefLens (\_ _ -> False)

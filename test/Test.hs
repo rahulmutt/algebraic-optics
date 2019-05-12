@@ -2,20 +2,19 @@ import Test.Tasty
 import Test.Tasty.HUnit
 
 import Algebraic.Optics
+import Algebraic.Optics.Equality
 import Control.Monad
 import Data.IORef
 import Data.Function
-import Data.Typeable
 
 data Department = Department { _budget :: Int }
-  deriving (Eq, Show, Typeable)
+  deriving (Eq, Show)
 
 data University a b = 
   University { _name :: String
              , _extras :: Maybe a
              , _departments :: IORef [Department]
              , _extras2 :: IORef (Either String b)}
-  deriving Typeable
 
 name :: ALens' (University a b) String
 name = lens _name (\s a -> s { _name = a })
@@ -29,7 +28,7 @@ budget = lens _budget (\s a -> s { _budget = a })
 departments :: ALensIO' (University a b) [Department]
 departments = mrefLensEq _departments
 
-extras2 :: (Eq a, Typeable a, Typeable b, Typeable c) 
+extras2 :: (Eq a, HasEquality (University c a) (University c b) (Either String a) (Either String b)) 
         => ALensIO (University c a) (University c b) (Either String a) (Either String b)
 extras2 = prefLensEq _extras2 (\s b -> s { _extras2 = b } )
 
@@ -47,7 +46,7 @@ main = defaultMain $
 
     assertEqual "uni name" "MIT" $ uni ^. name
 
-    assertEqual "get set" (Just True) $ (uni & extras .~ Just True) ^. extras
+    assertEqual "polymorphic set ioref & get" (Just True) $ (uni & extras .~ Just True) ^. extras
 
     uni <- uni & extras2 .~! Right True
 

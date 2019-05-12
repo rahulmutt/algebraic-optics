@@ -11,10 +11,11 @@ cabal-version:       1.12
 
 library
   exposed-modules:     Algebraic.Optics
+                       Algebraic.Optics.Equality
+                       Algebraic.Optics.Internal.Monoid1
+                       Algebraic.Optics.Internal.Indexed
   build-depends:       base >=4.11
                      , mtl
-                     , indexed
-                     , indexed-extras
   hs-source-dirs:      src
   ghc-options:         -Wall -Werror -Wno-name-shadowing -Wno-orphans
   default-language:    Haskell2010
@@ -30,6 +31,7 @@ library
                        BangPatterns
                        FunctionalDependencies
                        UndecidableInstances
+                       StandaloneDeriving
 
 test-suite unit-tests
   type:                exitcode-stdio-1.0
