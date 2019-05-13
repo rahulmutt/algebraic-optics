@@ -41,11 +41,15 @@ type GetterM f m n s a = forall im. (IxMonadState im, IxMonadLift im m) => Optic
 type Setter n s t a b = forall m. (IxMonadState m) => Optic' m First n s t a b
 type SetterM m n s t a b = forall im. (IxMonadState im, IxMonadLift im m) => Optic' im First n s t a b
 
-type AReview' n s a = AReview n s s a a
-type AReview n s t a b = forall m. (IxMonadState m, IxMonadWriter m) => Optic m t First n b s t a b
+type AReview n s a = forall m. (IxMonadState m, IxMonadWriter m) => Optic m s First n a s s a a
+type AReviewM m n s a = forall im. (IxMonadState im, IxMonadWriter im, IxMonadLift im m) => Optic im (m s) First n (m a) s s a a
 
 type APrism' s a = APrism s s a a
-type APrism s t a b = forall m f i. (IxMonadState m, IxMonadWriter m, Monoid1 f) => Optic m t f (IxReturnT IxState) i s t a b
+type APrism s t a b = forall m f i. (IxMonadState m, IxMonadWriter m, Monoid1 f) => Optic m t f (IxWriterT IxState) i s t a b
+
+type APrismM' m s a = APrismM m s s a a
+type APrismM m s t a b = forall im f i. (IxMonadState im, IxMonadWriter im, IxMonadLift im m, Monoid1 f) 
+                       => Optic im (m t) f (IxWriterT (IxStateT m)) (m i) s t a b
 
 type Lens n s t a b = forall m f. (IxMonadState m) => Optic' m f n s t a b
 type LensM m n s t a b = forall im f. (IxMonadState im, IxMonadLift im m) => Optic' im f n s t a b
@@ -117,13 +121,21 @@ type ALensIO s t a b = forall m. (MonadIO m) => ALensM m s t a b
   where n = iask >>>= (\i -> 
             istate (\a -> (pure (i, a), a)))
 
-(#) :: forall n s a. (IxMonadState n, IxMonadWriter n) => AReview' n s a -> a -> s
+(#) :: forall n s a. (IxMonadState n, IxMonadWriter n) => AReview n s a -> a -> s
 (#) hom a
   | Just s <- getIxReturn homResult
   = s
   | otherwise = error "Bad review"
-  where homResult :: IxReturnT IxState s s s (First ())
+  where homResult :: IxWriterT IxState s s s (First ())
         homResult = hom (imap pure (itell a))
+
+(#!) :: forall m n s a. (IxMonadState n, IxMonadWriter n, Monad m) => AReviewM m n s a -> a -> m s
+(#!) hom a
+  | Just ms <- getIxReturn homResult
+  = ms
+  | otherwise = error "Bad review"
+  where homResult :: IxWriterT (IxStateT m) (m s) s s (First ())
+        homResult = hom (imap pure (itell (return a)))
 
 traversed :: (Traversable t) => AIndexedTraversal Int (t a) (t b) a b 
 traversed = itraverseL
@@ -148,8 +160,22 @@ prism f g sm' =
         case g s of
             Left  t -> (mempty1, t)
             Right a -> let (r, b) = runIxState sm a in (r, f b)))
-    where (mret, sm) = runIxReturnT sm'
+    where (mret, sm) = runIxWriterT sm'
           t = f (unsafeCoerce (fromJust mret) :: b)
+
+prismM :: forall m s t a b. (b -> m t) -> (s -> m (Either t a)) -> APrismM m s t a b 
+prismM f g sm' =
+    itell t >>>= (\_ ->
+    istateLift (\s -> do
+        mta <- g s
+        case mta of
+            Left  t -> return (mempty1, t)
+            Right a -> do
+               (r, b) <- runIxStateT sm a 
+               t      <- f b
+               return (r, t)))
+    where (mret, sm) = runIxWriterT sm'
+          t = (unsafeCoerce (fromJust mret) :: m b) >>= f
 
 prism' :: (b -> s) -> (s -> Maybe a) -> APrism s s a b 
 prism' f g = prism f (\s -> maybe (Left s) Right $ g s)

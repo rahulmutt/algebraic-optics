@@ -48,6 +48,12 @@ class IxMonadWriter m where
 class (Monad m, IxMonad n) => IxMonadLift n m | n -> m where
     ilift :: m a -> n s i i a
 
+istateLift :: (IxMonadState im, IxMonadLift im m) => (s -> m (a, t)) -> im w s t a
+istateLift f = 
+    iget >>>= (\s -> 
+    ilift (f s) >>>= (\(a, t) -> 
+    iput t >>>= (const (ireturn a))))
+
 newtype IxState s i j a = 
     IxState { runIxState :: i -> (a, j) }
 
@@ -176,37 +182,37 @@ evalIxStateInstrumentT :: (Functor m) => IxStateInstrumentT m w s t a -> s -> m 
 evalIxStateInstrumentT ixs s = fmap f (runIxStateInstrumentT ixs s)
   where f (a,_,_) = a
 
-data IxReturnT m s i j a = 
-    IxReturnT { getIxReturn :: Maybe s
+data IxWriterT m s i j a = 
+    IxWriterT { getIxReturn :: Maybe s
               , getIxMonad  :: forall w. m w i j a }
 
-noIxReturnT :: (forall w. m w i j a) -> IxReturnT m s i j a
-noIxReturnT = IxReturnT Nothing
+noIxWriterT :: (forall w. m w i j a) -> IxWriterT m s i j a
+noIxWriterT = IxWriterT Nothing
 
-runIxReturnT :: IxReturnT m s i j a -> (Maybe s, m w i j a)
-runIxReturnT ret = (getIxReturn ret, getIxMonad ret)
+runIxWriterT :: IxWriterT m s i j a -> (Maybe s, m w i j a)
+runIxWriterT ret = (getIxReturn ret, getIxMonad ret)
 
-instance (IxPointed m) => IxPointed (IxReturnT m) where
-    ireturn a = noIxReturnT (ireturn a)
+instance (IxPointed m) => IxPointed (IxWriterT m) where
+    ireturn a = noIxWriterT (ireturn a)
 
-instance (IxFunctor m) => IxFunctor (IxReturnT m) where
-    imap f (IxReturnT r m) = IxReturnT r (imap f m)
+instance (IxFunctor m) => IxFunctor (IxWriterT m) where
+    imap f (IxWriterT r m) = IxWriterT r (imap f m)
 
-instance (IxApplicative m) => IxApplicative (IxReturnT m) where
-    iap (IxReturnT _ mab) (IxReturnT r ma) = IxReturnT r (iap mab ma)
+instance (IxApplicative m) => IxApplicative (IxWriterT m) where
+    iap (IxWriterT _ mab) (IxWriterT r ma) = IxWriterT r (iap mab ma)
 
-instance (IxMonad m) => IxMonad (IxReturnT m) where
-    ibind (IxReturnT r ma) f = IxReturnT r (ibind ma (getIxMonad . f))
+instance (IxMonad m) => IxMonad (IxWriterT m) where
+    ibind (IxWriterT r ma) f = IxWriterT r (ibind ma (getIxMonad . f))
 
-instance (IxMonadReader r m) => IxMonadReader r (IxReturnT m) where
-    iask = noIxReturnT iask
+instance (IxMonadReader r m) => IxMonadReader r (IxWriterT m) where
+    iask = noIxWriterT iask
 
-instance (IxMonadState m) => IxMonadState (IxReturnT m) where
-    iget = noIxReturnT iget
-    iput j = noIxReturnT (iput j)
+instance (IxMonadState m) => IxMonadState (IxWriterT m) where
+    iget = noIxWriterT iget
+    iput j = noIxWriterT (iput j)
 
-instance (IxMonadLift n m) => IxMonadLift (IxReturnT n) m where
-    ilift ma = noIxReturnT (ilift ma)
+instance (IxMonadLift n m) => IxMonadLift (IxWriterT n) m where
+    ilift ma = noIxWriterT (ilift ma)
 
-instance (IxMonad m) => IxMonadWriter (IxReturnT m) where
-    itell t = IxReturnT (Just t) (ireturn ())
+instance (IxMonad m) => IxMonadWriter (IxWriterT m) where
+    itell t = IxWriterT (Just t) (ireturn ())
