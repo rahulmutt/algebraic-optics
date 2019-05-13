@@ -60,8 +60,12 @@ main = defaultMain $
 
     assertEqualIO "preview first ioref"  (Just 4) $ uni ^?! departments . traversed . budget
 
-    assertEqual "preview Just ioref"    (Just "1") $ uni ^? extras . _Just
-    assertEqual "preview Nothing ioref"  Nothing $ uni ^? extras . _Nothing
+    assertEqual "preview Just ioref" (Just "1") $ uni ^? extras . _Just
+    assertEqual "preview Nothing ioref" Nothing   $ uni ^? extras . _Nothing
+    assertEqual "review Just" (Just True) $ _Just # True
+    assertEqual "review Nothing" (Nothing :: Maybe ()) $ _Nothing # ()
+    assertEqual "review Just . Nothing" (Just Nothing :: Maybe (Maybe ())) $ _Just . _Nothing # ()
+    assertEqual "review Just . Just"  (Just (Just True)) $ _Just . _Just # True
 
 assertEqualIO :: (Eq a, Show a) => String -> a -> IO a -> Assertion
 assertEqualIO msg exp act = join (assertEqual msg <$> pure exp <*> act)
