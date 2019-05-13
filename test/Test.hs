@@ -26,11 +26,11 @@ budget :: ALens' Department Int
 budget = lens _budget (\s a -> s { _budget = a })
 
 departments :: ALensIO' (University a b) [Department]
-departments = mrefLensEq _departments
+departments = mrefLens _departments
 
-extras2 :: (Eq a, HasEquality (University c a) (University c b) (Either String a) (Either String b)) 
+extras2 :: (HasEquality (University c a) (University c b) (Either String a) (Either String b)) 
         => ALensIO (University c a) (University c b) (Either String a) (Either String b)
-extras2 = prefLensEq _extras2 (\s b -> s { _extras2 = b } )
+extras2 = prefLens _extras2 (\s b -> s { _extras2 = b } )
 
 main :: IO ()
 main = defaultMain $

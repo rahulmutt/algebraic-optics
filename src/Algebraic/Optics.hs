@@ -54,7 +54,7 @@ type ALens' s a = ALens s s a a
 type ALens s t a b = forall m f. (IxMonadState m) => Optic' m f IxState s t a b
 
 type ALensM' m s t a b = ALensM m s s a a
-type ALensM m s t a b = LensM m (IxStateT m) s t a b
+type ALensM m s t a b = LensM m (IxStateInstrumentT m) s t a b
 
 type AIndexedTraversal' i s a = AIndexedTraversal i s s a a
 type AIndexedTraversal i s t a b = forall m f. (IxMonadState m, Monoid1 f) => Optic' m f (IxStateT (Reader i)) s t a b
@@ -168,14 +168,14 @@ fromVL lens sm = istate (lens (runIxState sm))
 lens :: (s -> a) -> (s -> b -> t) -> ALens s t a b
 lens getter setter sm = istate (\s -> second (setter s) (runIxState sm (getter s)))
 
-mlens :: forall m s t a b. HasEquality s t a b => (s -> m a) -> (s -> a -> a -> m s) -> (s -> b -> m t) -> ALensM m s t a b
+mlens :: forall m s t a b. HasEquality s t a b => (s -> m a) -> (s -> a -> Bool -> m s) -> (s -> b -> m t) -> ALensM m s t a b
 mlens getter msetter psetter sm = 
     iget >>>= (\s -> 
     ilift (getter s) >>>= (\a ->
-    ilift (runIxStateT sm a) >>>= (\(r, b) ->
+    ilift (runIxStateInstrumentT sm a) >>>= (\(r, b, c) ->
     case (hasEquality :: Equality s t a b) of
         Equality -> 
-            ilift (msetter s a b) >>>= (\t ->
+            ilift (msetter s b c) >>>= (\t ->
             iput t >>>= (\_ ->
             ireturn r))
         NoEquality -> 
@@ -183,42 +183,30 @@ mlens getter msetter psetter sm =
             iput t >>>= (\_ ->
             ireturn r)))))
 
-mlens' :: (s -> m a) -> (s -> a -> b -> m t) -> ALensM m s t a b
+mlens' :: (s -> m a) -> (s -> b -> Bool -> m t) -> ALensM m s t a b
 mlens' getter setter sm = 
     iget >>>= (\s -> 
     ilift (getter s) >>>= (\a ->
-    ilift (runIxStateT sm a) >>>= (\(r, b) ->
-    ilift (setter s a b) >>>= (\t ->
+    ilift (runIxStateInstrumentT sm a) >>>= (\(r, b, c) ->
+    ilift (setter s b c) >>>= (\t ->
     iput t >>>= (\_ ->
     ireturn r)))))
 
-mrefLens :: (a -> a -> Bool) -> (s -> IORef a) -> ALensIO' s a
-mrefLens equals f = mlens' getter setter
+mrefLens :: (s -> IORef a) -> ALensIO' s a
+mrefLens f = mlens' getter setter
    where getter s = liftIO (readIORef (f s))
-         setter s a b = do
-            when (not (equals a b)) $
+         setter s b modified = do
+            when modified $
               liftIO (writeIORef (f s) b)
             return s
 
-mrefLensEq :: Eq a => (s -> IORef a) -> ALensIO' s a
-mrefLensEq = mrefLens (==)
-
-mrefLensNoEq :: (s -> IORef a) -> ALensIO' s a
-mrefLensNoEq = mrefLens (\_ _ -> False)
-
-prefLens :: HasEquality s t a b => (a -> a -> Bool) -> (s -> IORef a) -> (s -> IORef b -> t) -> ALensIO s t a b
-prefLens equals f g = mlens getter msetter psetter
+prefLens :: HasEquality s t a b => (s -> IORef a) -> (s -> IORef b -> t) -> ALensIO s t a b
+prefLens f g = mlens getter msetter psetter
    where getter s = liftIO (readIORef (f s))
-         msetter s a b = do
-            when (not (equals a b)) $
+         msetter s b modified = do
+            when modified $
               liftIO (writeIORef (f s) b)
             return s
          psetter s b = do
             ref <- liftIO (newIORef b)
             return (g s ref)
-
-prefLensEq :: (HasEquality s t a b, Eq a) => (s -> IORef a) -> (s -> IORef b -> t) -> ALensIO s t a b
-prefLensEq = prefLens (==)
-
-prefLensNoEq :: HasEquality s t a b => (s -> IORef a) -> (s -> IORef b -> t) -> ALensIO s t a b
-prefLensNoEq = prefLens (\_ _ -> False)

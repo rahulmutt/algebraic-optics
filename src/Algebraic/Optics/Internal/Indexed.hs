@@ -108,8 +108,7 @@ instance (Monad m) => IxMonad (IxStateT m) where
     ibind (IxStateT state) f =
         IxStateT $ \i -> do
             (a, j) <- state i
-            (b, k) <- runIxStateT (f a) j
-            return (b, k)
+            runIxStateT (f a) j
 
 instance (MonadReader r m) => IxMonadReader r (IxStateT m) where
     iask = IxStateT $ \j -> ask >>= (\r -> return (r, j))
@@ -129,6 +128,53 @@ execIxStateT ixs = fmap snd . runIxStateT ixs
 
 evalIxStateT :: (Functor m) => IxStateT m w s t a -> s -> m a
 evalIxStateT ixs = fmap fst . runIxStateT ixs
+
+newtype IxStateInstrumentT m s i j a =
+    IxStateInstrumentT { runIxStateInstrumentT' :: i -> Bool -> m (a, j, Bool) }
+
+runIxStateInstrumentT :: IxStateInstrumentT m s i j a -> i ->  m (a, j, Bool)
+runIxStateInstrumentT m i = runIxStateInstrumentT' m i False
+
+instance (Applicative f) => IxPointed (IxStateInstrumentT f) where
+    ireturn a = IxStateInstrumentT $ \i b -> pure (a, i, b)
+
+instance (Functor f) => IxFunctor (IxStateInstrumentT f) where
+    imap f (IxStateInstrumentT state) =
+         IxStateInstrumentT $ \i b -> fmap (\(a, j, c) -> (f a, j, c)) (state i b)
+
+instance (Monad m) => IxApplicative (IxStateInstrumentT m) where
+    iap (IxStateInstrumentT stateAB) (IxStateInstrumentT stateA) =
+        IxStateInstrumentT $ \i b -> do
+            (ab, j, c) <- stateAB i b
+            (a,  k, d) <- stateA j c
+            return (ab a, k, d)
+
+instance (Monad m) => IxMonad (IxStateInstrumentT m) where
+    ibind (IxStateInstrumentT state) f =
+        IxStateInstrumentT $ \i b -> do
+            (a, j, c) <- state i b
+            runIxStateInstrumentT' (f a) j c
+
+instance (MonadReader r m) => IxMonadReader r (IxStateInstrumentT m) where
+    iask = IxStateInstrumentT $ \j b -> ask >>= (\r -> return (r, j, b))
+
+instance (Monad m) => IxMonadState (IxStateInstrumentT m) where
+    iget = IxStateInstrumentT $ \i b -> return (i, i, b)
+    iput j = IxStateInstrumentT $ \_ _ -> return ((), j, True)
+
+instance (Monad m) => IxMonadLift (IxStateInstrumentT m) m where
+    ilift ma = IxStateInstrumentT $ \i b -> ma >>= (\a -> return (a, i, b))
+
+instance (Monad m) => IxMonadWriter (IxStateInstrumentT m) where
+    itell _ = ireturn ()
+
+execIxStateInstrumentT :: (Functor m) => IxStateInstrumentT m w s t a -> s -> m t
+execIxStateInstrumentT ixs s = fmap f (runIxStateInstrumentT ixs s)
+  where f (_,b,_) = b
+
+evalIxStateInstrumentT :: (Functor m) => IxStateInstrumentT m w s t a -> s -> m a
+evalIxStateInstrumentT ixs s = fmap f (runIxStateInstrumentT ixs s)
+  where f (a,_,_) = a
 
 data IxReturnT m s i j a = 
     IxReturnT { getIxReturn :: Maybe s
