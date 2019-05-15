@@ -2,7 +2,6 @@ import Test.Tasty
 import Test.Tasty.HUnit
 
 import Algebraic.Optics
-import Algebraic.Optics.Equality
 import Control.Monad
 import Data.IORef
 import Data.Function

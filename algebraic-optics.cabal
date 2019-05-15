@@ -11,10 +11,17 @@ cabal-version:       1.12
 
 library
   exposed-modules:     Algebraic.Optics
-                       Algebraic.Optics.Equality
+                       Algebraic.Optics.Conversion  
+                       Algebraic.Optics.Equality  
+                       Algebraic.Optics.Fold      
+                       Algebraic.Optics.Getter    
+                       Algebraic.Optics.Lens      
+                       Algebraic.Optics.Prism     
+                       Algebraic.Optics.Review    
+                       Algebraic.Optics.Setter    
+                       Algebraic.Optics.Traversal 
+                       Algebraic.Optics.Type      
                        Algebraic.Optics.Internal.Indexed
-                       Algebraic.Optics.Internal.Monoid1
-                       Algebraic.Optics.Internal.Types
   build-depends:       base >=4.11
                      , mtl
   hs-source-dirs:      src
@@ -39,7 +46,7 @@ test-suite unit-tests
   main-is:             Test.hs
   build-depends:       base >=4.11
                      , algebraic-optics
-                     , tasty
+                     , tasty < 1.2
                      , tasty-hunit
   hs-source-dirs:      test
   ghc-options:         -Wall -Werror -Wno-name-shadowing
