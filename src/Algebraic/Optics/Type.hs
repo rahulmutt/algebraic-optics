@@ -45,35 +45,68 @@ type ALens' s a = ALens s s a a
 type ALens s t a b = forall m f. (IxMonadState m) => Optic' m f IxState s t a b
 type ALensF f s t a b = forall m. (IxMonadState m) => Optic' m f IxState s t a b
 
+type AIndexedLens' i s a = AIndexedLens i s s a a
+type AIndexedLens i s t a b = forall m f. (IxMonadState m) => Optic' m f (IxStateT (Reader i)) s t a b
+
 type ALensM' m s t a b = ALensM m s s a a
 type ALensM m s t a b = LensM m (IxStateInstrumentT m) s t a b
-
-type AIndexedTraversal' i s a = AIndexedTraversal i s s a a
-type AIndexedTraversal i s t a b = forall m f. (IxMonadState m, Monoid1 f) => Optic' m f (IxStateT (Reader i)) s t a b
-
-type ATraversal' s a = ATraversal s s a a
-type ATraversal s t a b = forall m f. (IxMonadState m, Monoid1 f) => Optic' m f IxState s t a b
 
 type ALensIO' s a = ALensIO s s a a
 type ALensIO s t a b = forall m. (MonadIO m) => ALensM m s t a b
 
-class Monoid1 m where
-    mempty1 :: m a
-    mappend1 :: m a -> m a -> m a
+type ATraversal' s a = ATraversal s s a a
+type ATraversal s t a b = forall m f. (IxMonadState m, Monoid1 f) => Optic' m f IxState s t a b
+
+type ATraversal1' s a = ATraversal1 s s a a
+type ATraversal1 s t a b = forall m f. (IxMonadState m, Semigroup1 f) => Optic' m f IxState s t a b
+
+type AIndexedTraversal' i s a = AIndexedTraversal i s s a a
+type AIndexedTraversal i s t a b = forall m f. (IxMonadState m, Monoid1 f) => Optic' m f (IxStateT (Reader i)) s t a b
+
+-- TODO You can do better than IxState
+type AFold  s a = forall m f. (IxMonadGet m, Monoid1 f)    => Optic' m f IxState s s a a
+type AFold1 s a = forall m f. (IxMonadGet m, Semigroup1 f) => Optic' m f IxState s s a a 
+
+-- TODO You can do better than IxStateT
+type AIndexedFold  i s a = forall m f. (IxMonadGet m, Monoid1 f)    => Optic' m f (IxStateT (Reader i)) s s a a
+type AIndexedFold1 i s a = forall m f. (IxMonadGet m, Semigroup1 f) => Optic' m f (IxStateT (Reader i)) s s a a
+
+class Semigroup1 f where
+    mappend1 :: f a -> f a -> f a
+
+    default mappend1 :: Semigroup (f a) => f a -> f a -> f a
+    mappend1 = (<>)
 
 instance (TypeError ('Text "The function expects a Lens, but you supplied a Prism or Traversal")) 
-    => Monoid1 Identity where
-    mempty1 = undefined
+    => Semigroup1 Identity where
     mappend1 = undefined
 
-instance Monoid1 Endo where
-    mempty1 = mempty
-    mappend1 = mappend
+instance Semigroup1 Endo
 
-instance Monoid1 First where
-    mempty1 = mempty
-    mappend1 = mappend
+instance Semigroup1 First
 
-instance (Monoid m) => Monoid1 (Const m) where
+instance (Semigroup s) => Semigroup1 (Const s)
+
+class Semigroup1 f => Monoid1 f where
+    mempty1 :: f a
+
+    default mempty1  :: Monoid (f a) => f a
     mempty1 = mempty
-    mappend1 = mappend
+
+instance (TypeError ('Text "The function expects a Lens, but you supplied a Prism or Traversal")) 
+      => Monoid1 Identity where
+    mempty1 = undefined
+
+instance Monoid1 Endo
+
+instance Monoid1 First
+
+instance Monoid m => Monoid1 (Const m)
+
+newtype ReverseMonoid f a = ReverseMonoid { getReverseMonoid :: f a }
+
+instance (Semigroup1 f) => Semigroup1 (ReverseMonoid f) where
+    mappend1 (ReverseMonoid m1) (ReverseMonoid m2) = ReverseMonoid (m2 `mappend1` m1)
+
+instance (Monoid1 f) => Monoid1 (ReverseMonoid f) where
+    mempty1 = ReverseMonoid mempty1

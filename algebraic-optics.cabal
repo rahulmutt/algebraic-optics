@@ -11,8 +11,12 @@ cabal-version:       1.12
 
 library
   exposed-modules:     Algebraic.Optics
+                       Algebraic.Optics.At  
+                       Algebraic.Optics.Cons  
                        Algebraic.Optics.Conversion  
+                       Algebraic.Optics.Each  
                        Algebraic.Optics.Equality  
+                       Algebraic.Optics.Empty  
                        Algebraic.Optics.Fold      
                        Algebraic.Optics.Getter    
                        Algebraic.Optics.Lens      
@@ -40,6 +44,8 @@ library
                        FunctionalDependencies
                        UndecidableInstances
                        StandaloneDeriving
+                       TypeFamilies
+                       DefaultSignatures
 
 test-suite unit-tests
   type:                exitcode-stdio-1.0

@@ -32,8 +32,10 @@ infixl 1 >>>=
 class (IxMonad m) => IxMonadReader r m where
     iask :: m s i i r
 
-class IxMonad m => IxMonadState m where
+class IxMonad m => IxMonadGet m where
     iget :: m s i i i
+
+class IxMonadGet m => IxMonadState m where
     iput :: j -> m s i j ()
 
 imodify :: (IxMonadState m) => (i -> j) -> m s i j ()
@@ -80,8 +82,10 @@ instance IxMonad IxState where
                 (b, k) = runIxState (f a) j
             in (b, k)
 
-instance IxMonadState IxState where
+instance IxMonadGet IxState where
     iget = IxState $ \i -> (i, i)
+
+instance IxMonadState IxState where
     iput j = IxState $ \_ -> ((), j)
 
 instance IxMonadWriter IxState where
@@ -119,8 +123,10 @@ instance (Monad m) => IxMonad (IxStateT m) where
 instance (MonadReader r m) => IxMonadReader r (IxStateT m) where
     iask = IxStateT $ \j -> ask >>= (\r -> return (r, j))
 
-instance (Monad m) => IxMonadState (IxStateT m) where
+instance (Monad m) => IxMonadGet (IxStateT m) where
     iget = IxStateT $ \i -> return (i, i)
+
+instance (Monad m) => IxMonadState (IxStateT m) where
     iput j = IxStateT $ \_ -> return ((), j)
 
 instance (Monad m) => IxMonadLift (IxStateT m) m where
@@ -164,8 +170,10 @@ instance (Monad m) => IxMonad (IxStateInstrumentT m) where
 instance (MonadReader r m) => IxMonadReader r (IxStateInstrumentT m) where
     iask = IxStateInstrumentT $ \j b -> ask >>= (\r -> return (r, j, b))
 
-instance (Monad m) => IxMonadState (IxStateInstrumentT m) where
+instance (Monad m) => IxMonadGet (IxStateInstrumentT m) where
     iget = IxStateInstrumentT $ \i b -> return (i, i, b)
+
+instance (Monad m) => IxMonadState (IxStateInstrumentT m) where
     iput j = IxStateInstrumentT $ \_ _ -> return ((), j, True)
 
 instance (Monad m) => IxMonadLift (IxStateInstrumentT m) m where
@@ -207,8 +215,10 @@ instance (IxMonad m) => IxMonad (IxWriterT m) where
 instance (IxMonadReader r m) => IxMonadReader r (IxWriterT m) where
     iask = noIxWriterT iask
 
-instance (IxMonadState m) => IxMonadState (IxWriterT m) where
+instance (IxMonadGet m) => IxMonadGet (IxWriterT m) where
     iget = noIxWriterT iget
+
+instance (IxMonadState m) => IxMonadState (IxWriterT m) where
     iput j = noIxWriterT (iput j)
 
 instance (IxMonadLift n m) => IxMonadLift (IxWriterT n) m where
