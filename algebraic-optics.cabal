@@ -19,11 +19,13 @@ library
                        Algebraic.Optics.Empty  
                        Algebraic.Optics.Fold      
                        Algebraic.Optics.Getter    
+                       Algebraic.Optics.Iso  
                        Algebraic.Optics.Lens      
                        Algebraic.Optics.Prism     
                        Algebraic.Optics.Review    
                        Algebraic.Optics.Setter    
                        Algebraic.Optics.Traversal 
+                       Algebraic.Optics.Tuple 
                        Algebraic.Optics.Type      
                        Algebraic.Optics.Internal.Indexed
   build-depends:       base >=4.11
@@ -46,6 +48,7 @@ library
                        StandaloneDeriving
                        TypeFamilies
                        DefaultSignatures
+                       GeneralizedNewtypeDeriving
 
 test-suite unit-tests
   type:                exitcode-stdio-1.0

@@ -38,20 +38,22 @@ uncons :: Cons s s a a => s -> Maybe (a, s)
 uncons _s = undefined -- s ^? _Cons
 
 _head :: Cons s s a a => ATraversal' s a
-_head sm = iget >>>= (\s -> 
-    case uncons s of
-        Just (a, s) -> 
-            let (gx, b) = runIxState sm a
-            in iput (cons b s) >>>= const (ireturn gx)
-        Nothing -> ireturn mempty1)
+_head sm = 
+    istateM $ \s ->
+        case uncons s of
+            Just (a, s) -> do
+                (gx, b) <- runIxStateT sm a
+                return (gx, cons b s)
+            Nothing -> return (mempty1, s)
 
 _tail :: Cons s s a a => ATraversal' s s
-_tail sm = iget >>>= (\s -> 
-    case uncons s of
-        Just (a, s) -> 
-            let (gx, t) = runIxState sm s
-            in iput (cons a t) >>>= const (ireturn gx)
-        Nothing -> ireturn mempty1)
+_tail sm = 
+    istateM $ \s -> 
+        case uncons s of
+            Just (a, s) -> do
+                (gx, t) <- runIxStateT sm s
+                return (gx, cons a t)
+            Nothing -> return (mempty1, s)
 
 class Snoc s t a b | s -> a, t -> b, s b -> t, t a -> s where
     _Snoc :: APrism s t (s, a) (t, b)
@@ -80,17 +82,19 @@ unsnoc :: Snoc s s a a => s -> Maybe (s, a)
 unsnoc _s = undefined -- s ^? _Snoc
 
 _init :: Snoc s s a a => ATraversal' s s
-_init sm = iget >>>= (\s -> 
-    case unsnoc s of
-        Just (s, a) -> 
-            let (gx, t) = runIxState sm s
-            in iput (snoc t a) >>>= const (ireturn gx)
-        Nothing -> ireturn mempty1)
+_init sm = 
+    istateM $ \s ->
+        case unsnoc s of
+            Just (s, a) -> do
+                (gx, t) <- runIxStateT sm s
+                return (gx, snoc t a)
+            Nothing -> return (mempty1, s)
 
 _last :: Snoc s s a a => ATraversal' s a
-_last sm = iget >>>= (\s -> 
-    case unsnoc s of
-        Just (s, a) -> 
-            let (gx, b) = runIxState sm a
-            in iput (snoc s b) >>>= const (ireturn gx)
-        Nothing -> ireturn mempty1)
+_last sm = 
+    istateM $ \s ->
+        case unsnoc s of
+            Just (s, a) -> do
+                (gx, b) <- runIxStateT sm a
+                return (gx, snoc s b)
+            Nothing -> return (mempty1, s)

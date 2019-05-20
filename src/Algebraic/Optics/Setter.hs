@@ -26,3 +26,23 @@ infixr 4 .~, .~!, %~, %~!
 
 (%~!) :: (IxMonadState n, Monad m) => SetterM m n s t a b -> (a -> b) -> s -> m t
 (%~!) hom f = execIxStateT (hom (imap pure (imodify f)))
+
+(.@~) :: (IxMonadState n, IxMonadReader i n) => Setter n s t a b -> (i -> b) -> s -> t
+(.@~) hom f = execIxState (hom n)
+  where n = iask >>>= (\i -> 
+            imap pure (iput (f i)))
+
+(.@~!) :: (IxMonadState n, IxMonadReader i n, Monad m) => SetterM m n s t a b -> (i -> b) -> s -> m t
+(.@~!) hom f = execIxStateT (hom n)
+  where n = iask >>>= (\i -> 
+            imap pure (iput (f i)))
+
+(%@~) :: (IxMonadState n, IxMonadReader i n) => Setter n s t a b -> (i -> a -> b) -> s -> t
+(%@~) hom f = execIxState (hom n)
+  where n = iask >>>= (\i -> 
+            imap pure (imodify (f i)))
+
+(%@~!) :: (IxMonadState n, IxMonadReader i n, Monad m) => SetterM m n s t a b -> (i -> a -> b) -> s -> m t
+(%@~!) hom f = execIxStateT (hom n)
+  where n = iask >>>= (\i -> 
+            imap pure (imodify (f i)))

@@ -17,6 +17,18 @@ import Data.Functor.Identity
 
 infixl 8 ^., ^.!, ^@., ^@.!
 
+to :: (s -> a) -> AGetter s a
+to f sm = igetsM (evalIxStateT sm . f)
+
+ito :: (s -> (i, a)) -> AIndexedGetter i s a
+ito f sm = igetsM (\s -> let (i, a) = f s in evalIxReaderStateT sm i a)
+
+like :: a -> ARelaxedGetter s a
+like a sm = ilift (evalIxStateT sm a)
+
+ilike :: i -> a -> ARelaxedIndexedGetter i s a
+ilike i a sm = ilift (evalIxReaderStateT sm i a)
+
 (^.) :: (IxMonadState n) => s -> Getter Identity n s a -> a
 (^.) t hom = runIdentity $ evalIxState (hom (imap pure iget)) t
 

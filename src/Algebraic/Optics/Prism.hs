@@ -17,19 +17,21 @@ import Unsafe.Coerce
 import Data.Maybe
 
 prism :: forall s t a b. (b -> t) -> (s -> Either t a) -> APrism s t a b 
-prism f g sm' =
+prism f g sm' = 
     itell t >>>= (\_ ->
-    istate (\s -> 
+    istateM (\s -> 
         case g s of
-            Left  t -> (mempty1, t)
-            Right a -> let (r, b) = runIxState sm a in (r, f b)))
+            Left  t -> return (mempty1, t)
+            Right a -> do
+                (r, b) <- runIxStateT sm a 
+                return (r, f b)))
     where (mret, sm) = runIxWriterT sm'
           t = f (unsafeCoerce (fromJust mret) :: b)
 
 prismM :: forall m s t a b. (b -> m t) -> (s -> m (Either t a)) -> APrismM m s t a b 
 prismM f g sm' =
     itell t >>>= (\_ ->
-    istateLift (\s -> do
+    istateM (\s -> do
         mta <- g s
         case mta of
             Left  t -> return (mempty1, t)

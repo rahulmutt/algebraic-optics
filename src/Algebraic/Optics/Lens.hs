@@ -20,7 +20,7 @@ import Data.IORef
 import Control.Arrow
 
 lens :: (s -> a) -> (s -> b -> t) -> ALens s t a b
-lens getter setter sm = istate (\s -> second (setter s) (runIxState sm (getter s)))
+lens getter setter sm = istateM (\s -> fmap (second (setter s)) (runIxStateT sm (getter s)))
 
 mlens :: forall m s t a b. HasEquality s t a b => (s -> m a) -> (s -> a -> Bool -> m s) -> (s -> b -> m t) -> ALensM m s t a b
 mlens getter msetter psetter sm = 

@@ -1,6 +1,6 @@
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Algebraic.Optics.Conversion
+-- Module      :  Algebraic.Optics.Iso
 -- Copyright   :  (C) 2019 Rahul Muttineni
 -- License     :  BSD-style (see the file LICENSE)
 -- Maintainer  :  Rahul Muttineni <rahulmutt@gmail.com>
@@ -8,10 +8,13 @@
 -- Portability :  non-portable
 ----------------------------------------------------------------------------
 
-module Algebraic.Optics.Conversion where
+module Algebraic.Optics.Iso where
 
 import Algebraic.Optics.Type
--- import Algebraic.Optics.Internal.Indexed
+import Algebraic.Optics.Internal.Indexed
 
-fromVL :: (forall f. (Functor f) => (a -> f b) -> (s -> f t)) -> ALens s t a b
-fromVL _lens _sm = undefined -- TODO: istateM (lens (runIxStateT sm))
+iso :: (s -> a) -> (b -> t) -> AnIso s t a b 
+iso f g sm = 
+    istateM $ \s -> do
+        (r, b) <- runIxStateT sm (f s)
+        return (r, g b)
