@@ -37,7 +37,7 @@ itraverseL sm = istateM (fmap (first fst) . mapAccumLM accum (mempty1, 0))
           (gx', b) <- runIxReaderStateT sm n a
           return ((gx `mappend1` gx', n + 1), b)
 
-mapMOf :: (IxMonadState n, IxMonadLift m n) => Traversal n s t a b -> (a -> m b) -> s -> m t
+mapMOf :: (IxMonadState n, IxMonadLift m n) => Traversal m n s t a b -> (a -> m b) -> s -> m t
 mapMOf hom f s = execIxStateT (hom (istateM (fmap (\b -> (First $ Just (), b)) . f))) s
 
 mapAccumLM :: (Traversable t, Monad m) => (a -> b -> m (a, c)) -> a -> t b -> m (a, t c) 
