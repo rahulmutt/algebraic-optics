@@ -22,16 +22,16 @@ import Data.Functor.Identity
 
 infixl 8 ^.., ^..!, ^?, ^?!, ^@.., ^@..!
 
-(^..) :: IxMonadGet n => s -> GetterM Endo Identity n s a -> [a]
-(^..) s hom = appEndo (evalIxState (hom (igets (Endo . (:)))) s) []
+(^..) :: IxMonadGet n => s -> Getter Endo n s a -> [a]
+(^..) s hom = appEndo (runIdentity (evalIxStateT (hom (igets (Endo . (:)))) s)) []
 
-(^..!) :: (IxMonadGet n, Monad m) => s -> GetterM Endo m n s a -> m [a]
+(^..!) :: (IxMonadGet n, Monad m) => s -> GetterM m Endo n s a -> m [a]
 (^..!) s hom = fmap (flip appEndo []) (evalIxStateT (hom (igets (Endo . (:)))) s)
 
-(^?) :: IxMonadGet n => s -> GetterM First Identity n s a -> Maybe a
+(^?) :: IxMonadGet n => s -> Getter First n s a -> Maybe a
 (^?) s hom = getFirst $ evalIxState (hom (igets pure)) s
 
-(^?!) :: (IxMonadGet n, Monad m) => s -> GetterM First m n s a -> m (Maybe a)
+(^?!) :: (IxMonadGet n, Monad m) => s -> GetterM m First n s a -> m (Maybe a)
 (^?!) s hom = fmap getFirst $ evalIxStateT (hom (igets pure)) s
 
 has :: IxMonadGet n => Getter (Const Any) n s a -> s -> Bool
@@ -159,13 +159,13 @@ sequenceAOf_ hom = getTraversed . evalIxState (hom (igets (\a -> Traversed (a *>
 (^@..) :: (IxMonadGet n, IxMonadReader i n) => s -> Getter Endo n s a -> [(i, a)]
 (^@..) s hom = appEndo (evalIxState (hom (iwith (\i a -> Endo ((i, a) :)))) s) []
 
-(^@..!) :: (IxMonadGet n, IxMonadReader i n, Monad m) => s -> GetterM Endo m n s a -> m [(i, a)]
+(^@..!) :: (IxMonadGet n, IxMonadReader i n, Monad m) => s -> GetterM m Endo n s a -> m [(i, a)]
 (^@..!) s hom = fmap (flip appEndo []) (evalIxStateT (hom (iwith (\i a -> Endo ((i, a) :)))) s)
 
 (^@?) :: (IxMonadGet n, IxMonadReader i n) => s -> Getter First n s a -> Maybe (i, a)
 (^@?) s hom = getFirst $ evalIxState (hom (iwith (\i a -> pure (i, a)))) s
 
-(^@?!) :: (IxMonadGet n, IxMonadReader i n, Monad m) => s -> GetterM First m n s a -> m (Maybe (i, a))
+(^@?!) :: (IxMonadGet n, IxMonadReader i n, Monad m) => s -> GetterM m First n s a -> m (Maybe (i, a))
 (^@?!) s hom = fmap getFirst $ evalIxStateT (hom (iwith (\i a -> pure (i, a)))) s
 
 ifoldMapOf :: (IxMonadGet n, IxMonadReader i n, Monoid r) => Getter (Const r) n s a -> (i -> a -> r) -> s -> r

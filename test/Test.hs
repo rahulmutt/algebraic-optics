@@ -66,6 +66,8 @@ main = defaultMain $
     assertEqual "review Just . Nothing" (Just Nothing :: Maybe (Maybe ())) $ _Just . _Nothing # ()
     assertEqual "review Just . Just"  (Just (Just True)) $ _Just . _Just # True
     assertEqualIO "mapMOf traversal"  (replicate 4 ()) $ mapMOf traversed print [1,2,3,4 :: Int]
+    assertEqual "dropping traversal" [2,3,4] $ [1,2,3,4 :: Int] ^.. dropping 1 traversed
+    assertEqual "taking traversal" [1, 2] $ [1,2,3,4 :: Int] ^.. taking 2 traversed
 
 assertEqualIO :: (Eq a, Show a) => String -> a -> IO a -> Assertion
 assertEqualIO msg exp act = join (assertEqual msg <$> pure exp <*> act)

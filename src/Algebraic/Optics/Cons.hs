@@ -35,7 +35,7 @@ cons :: Cons s s a a => a -> s -> s
 cons a s = _Cons # (a, s) 
 
 uncons :: Cons s s a a => s -> Maybe (a, s)
-uncons _s = undefined -- s ^? _Cons
+uncons _s = error "uncons" --s ^? _Cons
 
 _head :: Cons s s a a => ATraversal' s a
 _head sm = 

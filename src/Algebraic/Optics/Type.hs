@@ -30,15 +30,14 @@ type AIndexedGetter i s a = forall m f n. (IxMonadState m, IxMonadLift n m) => O
 type ARelaxedGetter s a = forall m f n. IxMonadLift n m => Optic' m f (IxStateT n) s s a a
 type ARelaxedIndexedGetter i s a = forall m f n. IxMonadLift n m => Optic' m f (IxReaderStateT i n) s s a a
 
-type Getter f n s a = GetterM f Identity n s a
-type GetterM f m n s a = forall im. (IxMonadState im, IxMonadLift m im) => Optic' im f n s s a a
+type Getter f n s a = GetterM Identity f n s a
+type GetterM m f n s a = Optic' (IxStateT m) f n s s a a
 
 type Setter n s t a b = SetterM Identity n s t a b
-type SetterM m n s t a b = forall im. (IxMonadState im, IxMonadLift m im) => Optic' im First n s t a b
+type SetterM m n s t a b =  Optic' (IxStateT m) Unit n s t a b
 
-type AReview n s a = forall m. (IxMonadState m, IxMonadWriter m, IxMonadLift Identity m) => Optic m s First n a s s a a
-
-type AReviewM m n s a = forall im. (IxMonadState im, IxMonadWriter im, IxMonadLift m im) => Optic im (m s) First n (m a) s s a a
+type AReview n s a = Optic (IxWriterT (IxStateT Identity)) s Unit n a s s a a
+type AReviewM m n s a = Optic (IxWriterT (IxStateT m)) (m s) Unit n (m a) s s a a
 
 type APrism' s a = APrism s s a a
 type APrism s t a b = forall m f i. (IxMonadState m, IxMonadWriter m, IxMonadLift Identity m, Monoid1 f) 
@@ -66,8 +65,11 @@ type ALensM m s t a b = LensM m (IxStateInstrumentT m) s t a b
 type ALensIO' s a = ALensIO s s a a
 type ALensIO s t a b = forall m. (MonadIO m) => ALensM m s t a b
 
-type Traversal' p n s a = Traversal p n s s a a
-type Traversal p n s t a b = forall m f. (IxMonadState m, IxMonadLift p m, Monoid1 f) => Optic' m f n s t a b
+type Traversal' m f n s a = Traversal m f n s s a a
+type Traversal m f n s t a b = Optic' (IxStateT m) f n s t a b
+
+type TraversalLike' n s a = TraversalLike n s s a a
+type TraversalLike n s t a b = forall m f. (IxMonadState m, Monoid1 f) => Optic' m f n s t a b
 
 type ATraversal' s a = ATraversal s s a a
 type ATraversal s t a b = forall m f n. (IxMonadState m, IxMonadLift n m, Monoid1 f) => Optic' m f (IxStateT n) s t a b
@@ -126,3 +128,6 @@ instance (Semigroup1 f) => Semigroup1 (ReverseMonoid f) where
 
 instance (Monoid1 f) => Monoid1 (ReverseMonoid f) where
     mempty1 = ReverseMonoid mempty1
+
+newtype Unit a = Unit (Const () a)
+  deriving (Semigroup, Monoid, Functor, Applicative, Semigroup1, Monoid1)

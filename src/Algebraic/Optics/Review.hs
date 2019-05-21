@@ -13,22 +13,16 @@ module Algebraic.Optics.Review where
 import Algebraic.Optics.Type
 import Algebraic.Optics.Internal.Indexed
 
-import Data.Monoid
-
 infixr 8 #, #!
 
 (#) :: forall n s a. (IxMonadState n, IxMonadWriter n) => AReview n s a -> a -> s
 (#) hom a
-  | Just s <- getIxReturn homResult
+  | Just s <- getIxReturn (hom (imap pure (itell a)))
   = s
   | otherwise = error "Bad review"
-  where homResult :: IxWriterT IxState s s s (First ())
-        homResult = hom (imap pure (itell a))
 
 (#!) :: forall m n s a. (IxMonadState n, IxMonadWriter n, Monad m) => AReviewM m n s a -> a -> m s
 (#!) hom a
-  | Just ms <- getIxReturn homResult
+  | Just ms <- getIxReturn (hom (imap pure (itell (return a))))
   = ms
-  | otherwise = error "Bad review"
-  where homResult :: IxWriterT (IxStateT m) (m s) s s (First ())
-        homResult = hom (imap pure (itell (return a)))
+  | otherwise = error "Bad review!"

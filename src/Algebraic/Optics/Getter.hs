@@ -32,7 +32,7 @@ ilike i a sm = ilift (evalIxReaderStateT sm i a)
 (^.) :: (IxMonadState n) => s -> Getter Identity n s a -> a
 (^.) t hom = runIdentity $ evalIxState (hom (imap pure iget)) t
 
-(^.!) :: (IxMonadState n, Monad m) => s -> GetterM Identity m n s a -> m a
+(^.!) :: (IxMonadState n, Monad m) => s -> GetterM m Identity n s a -> m a
 (^.!) t hom = fmap runIdentity $ evalIxStateT (hom (imap pure iget)) t
 
 (^@.) :: (IxMonadState n, IxMonadReader i n) => s -> Getter Identity n s a -> (i, a)
@@ -40,7 +40,7 @@ ilike i a sm = ilift (evalIxReaderStateT sm i a)
   where n = iask >>>= (\i -> 
             istate (\a -> (pure (i, a), a)))
 
-(^@.!) :: (IxMonadState n, IxMonadReader i n, Monad m) => s -> GetterM Identity m n s a -> m (i, a)
+(^@.!) :: (IxMonadState n, IxMonadReader i n, Monad m) => s -> GetterM m Identity n s a -> m (i, a)
 (^@.!) t hom = fmap runIdentity $ evalIxStateT (hom n) t
   where n = iask >>>= (\i -> 
             istate (\a -> (pure (i, a), a)))
