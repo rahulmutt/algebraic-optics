@@ -21,28 +21,28 @@ import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.State
 
-traversed :: Traversable t => AIndexedTraversal Int (t a) (t b) a b 
+traversed :: Traversable t => IndexedTraversal Int (t a) (t b) a b 
 traversed = itraverseL
 
-traversed64 :: Traversable t => AIndexedTraversal Int64 (t a) (t b) a b 
+traversed64 :: Traversable t => IndexedTraversal Int64 (t a) (t b) a b 
 traversed64 = itraverseL
 
-traverseL :: Traversable t => ATraversal (t a) (t b) a b 
+traverseL :: Traversable t => Traversal (t a) (t b) a b 
 traverseL sm = istateM (mapAccumLM accum mempty1)
   where accum gx a = do
           (gx', b) <- runIxStateT sm a 
           return (gx `mappend1` gx', b)
 
-itraverseL :: (Traversable t, Integral n) => AIndexedTraversal n (t a) (t b) a b 
+itraverseL :: (Traversable t, Integral n) => IndexedTraversal n (t a) (t b) a b 
 itraverseL sm = istateM (fmap (first fst) . mapAccumLM accum (mempty1, 0))
   where accum (gx, !n) a = do
           (gx', b) <- runIxReaderStateT sm n a
           return ((gx `mappend1` gx', n + 1), b)
 
-element :: Traversable t => Int -> AIndexedTraversal' Int (t a) a
+element :: Traversable t => Int -> IndexedTraversal' Int (t a) a
 element i = elements (== i)
 
-elements :: Traversable t => (Int -> Bool) -> AIndexedTraversal' Int (t a) a
+elements :: Traversable t => (Int -> Bool) -> IndexedTraversal' Int (t a) a
 elements f sm = istateM (fmap (first fst) . mapAccumLM accum (mempty1, 0))
   where accum (gx, !n) a 
           | f n = do
@@ -51,27 +51,27 @@ elements f sm = istateM (fmap (first fst) . mapAccumLM accum (mempty1, 0))
           | otherwise = return ((gx, n + 1), a)
 
 -- TODO: Make this support applicatives as well
-traverseOf :: (IxMonadState n, IxMonadLift m n) => Traversal m Unit n s t a b -> (a -> m b) -> s -> m t
+traverseOf :: (IxMonadState n, IxMonadLift m n) => ATraversal m Unit n s t a b -> (a -> m b) -> s -> m t
 traverseOf = mapMOf
 
-forOf :: (IxMonadState n, IxMonadLift m n) => Traversal m Unit n s t a b -> s -> (a -> m b) -> m t
+forOf :: (IxMonadState n, IxMonadLift m n) => ATraversal m Unit n s t a b -> s -> (a -> m b) -> m t
 forOf hom s f = traverseOf hom f s
 
 -- TODO: Make this support applicatives as well
-sequenceAOf :: (IxMonadState n, IxMonadLift f n) => Traversal f Unit n s t (f b) b -> s -> f t  
+sequenceAOf :: (IxMonadState n, IxMonadLift f n) => ATraversal f Unit n s t (f b) b -> s -> f t  
 sequenceAOf = sequenceOf
 
-mapMOf :: (IxMonadState n, IxMonadLift m n) => Traversal m Unit n s t a b -> (a -> m b) -> s -> m t
+mapMOf :: (IxMonadState n, IxMonadLift m n) => ATraversal m Unit n s t a b -> (a -> m b) -> s -> m t
 mapMOf hom f s = execIxStateT (hom (istateM (fmap (\b -> (pure (), b)) . f))) s
 
-forMOf :: (IxMonadState n, IxMonadLift m n) => Traversal m Unit n s t a b -> s -> (a -> m b) -> m t
+forMOf :: (IxMonadState n, IxMonadLift m n) => ATraversal m Unit n s t a b -> s -> (a -> m b) -> m t
 forMOf hom s f = mapMOf hom f s
 
-sequenceOf :: (IxMonadState n, IxMonadLift f n) => Traversal f Unit n s t (f b) b -> s -> f t  
+sequenceOf :: (IxMonadState n, IxMonadLift f n) => ATraversal f Unit n s t (f b) b -> s -> f t  
 sequenceOf hom = execIxStateT (hom (istateM (fmap (\b -> (pure (), b)))))
 
 mapAccumLOf :: (IxMonadState n, IxMonadLift (State acc) n) 
-            => Traversal (State acc) Unit n s t a b -> (acc -> a -> (acc, b)) -> acc -> s -> (acc, t) 
+            => ATraversal (State acc) Unit n s t a b -> (acc -> a -> (acc, b)) -> acc -> s -> (acc, t) 
 mapAccumLOf hom f acc0 s = swap (runState (execIxStateT (hom (istateM g)) s) acc0)
   where g a = do
           acc <- get
@@ -79,13 +79,13 @@ mapAccumLOf hom f acc0 s = swap (runState (execIxStateT (hom (istateM g)) s) acc
           put acc'
           return (pure (), b)
 
-failover :: (Alternative f, IxMonadState n) => Traversal Identity (Const Any) n s t a b -> (a -> b) -> s -> f t 
+failover :: (Alternative f, IxMonadState n) => ATraversal Identity (Const Any) n s t a b -> (a -> b) -> s -> f t 
 failover hom f s
   | any == Const (Any False) = empty
   | otherwise = pure t
   where (any, t) = runIxState (hom (istate (\a -> (Const (Any True), f a)))) s
 
-ifailover :: (Alternative f, IxMonadState n, IxMonadReader i n) => Traversal Identity (Const Any) n s t a b -> (i -> a -> b) -> s -> f t 
+ifailover :: (Alternative f, IxMonadState n, IxMonadReader i n) => ATraversal Identity (Const Any) n s t a b -> (i -> a -> b) -> s -> f t 
 ifailover hom f s
   | any == Const (Any False) = empty
   | otherwise = pure t

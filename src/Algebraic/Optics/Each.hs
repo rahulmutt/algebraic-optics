@@ -17,9 +17,9 @@ import Data.List.NonEmpty
 import Data.Functor.Identity
 
 class Each s t a b | s -> a, t -> b, s b -> t, t a -> s where
-    each :: ATraversal s t a b
+    each :: Traversal s t a b
 
-    default each :: (Traversable f, s ~ f a, t ~ f b) => ATraversal s t a b
+    default each :: (Traversable f, s ~ f a, t ~ f b) => Traversal s t a b
     each = traverseL
     {-# INLINE each #-}
 

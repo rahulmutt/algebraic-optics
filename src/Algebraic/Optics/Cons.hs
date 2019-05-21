@@ -18,7 +18,7 @@ import Algebraic.Optics.Type
 import Control.Applicative
 
 class Cons s t a b | s -> a, t -> b, s b -> t, t a -> s where
-    _Cons :: APrism s t (a, s) (b, t)
+    _Cons :: Prism s t (a, s) (b, t)
 
 instance Cons [a] [b] a b where
     _Cons = prism (uncurry (:))
@@ -37,7 +37,7 @@ cons a s = _Cons # (a, s)
 uncons :: Cons s s a a => s -> Maybe (a, s)
 uncons _s = error "uncons" --s ^? _Cons
 
-_head :: Cons s s a a => ATraversal' s a
+_head :: Cons s s a a => Traversal' s a
 _head sm = 
     istateM $ \s ->
         case uncons s of
@@ -46,7 +46,7 @@ _head sm =
                 return (gx, cons b s)
             Nothing -> return (mempty1, s)
 
-_tail :: Cons s s a a => ATraversal' s s
+_tail :: Cons s s a a => Traversal' s s
 _tail sm = 
     istateM $ \s -> 
         case uncons s of
@@ -56,7 +56,7 @@ _tail sm =
             Nothing -> return (mempty1, s)
 
 class Snoc s t a b | s -> a, t -> b, s b -> t, t a -> s where
-    _Snoc :: APrism s t (s, a) (t, b)
+    _Snoc :: Prism s t (s, a) (t, b)
 
 instance Snoc [a] [b] a b where
     _Snoc = prism (\(t,b) -> t ++ [b])
@@ -81,7 +81,7 @@ snoc s a = _Snoc # (s, a)
 unsnoc :: Snoc s s a a => s -> Maybe (s, a)
 unsnoc _s = undefined -- s ^? _Snoc
 
-_init :: Snoc s s a a => ATraversal' s s
+_init :: Snoc s s a a => Traversal' s s
 _init sm = 
     istateM $ \s ->
         case unsnoc s of
@@ -90,7 +90,7 @@ _init sm =
                 return (gx, snoc t a)
             Nothing -> return (mempty1, s)
 
-_last :: Snoc s s a a => ATraversal' s a
+_last :: Snoc s s a a => Traversal' s a
 _last sm = 
     istateM $ \s ->
         case unsnoc s of

@@ -14,13 +14,13 @@ import Algebraic.Optics.Lens
 import Algebraic.Optics.Type
 
 class Field1 s t a b | s -> a, t -> b, s b -> t, t a -> s where
-  _1 :: ALens s t a b
+  _1 :: Lens s t a b
 
 instance Field1 (a, b) (a', b) a a' where
   _1 = lens fst (\(_, b) a' -> (a', b))
 
 class Field2 s t a b | s -> a, t -> b, s b -> t, t a -> s where
-  _2 :: ALens s t a b
+  _2 :: Lens s t a b
 
 instance Field2 (a, b) (a, b') b b' where
   _2 = lens snd (\(a, _) b' -> (a, b'))

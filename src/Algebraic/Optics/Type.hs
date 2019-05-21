@@ -23,71 +23,63 @@ type Optic' m f n s t a b = forall i j. Optic m i f n j s t a b
 type Optic m i f n j s t a b = Nat (m i s t) f (n j a b)
 
 -- TODO Make this IxGet instead for type-safety
-type AGetter s a = forall m f n. (IxMonadState m, IxMonadLift n m) => Optic' m f (IxStateT n) s s a a
-type AIndexedGetter i s a = forall m f n. (IxMonadState m, IxMonadLift n m) => Optic' m f (IxReaderStateT i n) s s a a
+type Getter s a = forall m f n. (IxMonadState m, IxMonadLift n m) => Optic' m f (IxStateT n) s s a a
+type IndexedGetter i s a = forall m f n. (IxMonadState m, IxMonadLift n m) => Optic' m f (IxReaderStateT i n) s s a a
 
 -- TODO Make this IxGet instead for type-safety
-type ARelaxedGetter s a = forall m f n. IxMonadLift n m => Optic' m f (IxStateT n) s s a a
-type ARelaxedIndexedGetter i s a = forall m f n. IxMonadLift n m => Optic' m f (IxReaderStateT i n) s s a a
+type RelaxedGetter s a = forall m f n. IxMonadLift n m => Optic' m f (IxStateT n) s s a a
+type RelaxedIndexedGetter i s a = forall m f n. IxMonadLift n m => Optic' m f (IxReaderStateT i n) s s a a
 
-type Getter f n s a = GetterM Identity f n s a
-type GetterM m f n s a = Optic' (IxStateT m) f n s s a a
+type AGetter f n s a = AGetterM Identity f n s a
+type AGetterM m f n s a = Optic' (IxStateT m) f n s s a a
 
-type Setter n s t a b = SetterM Identity n s t a b
-type SetterM m n s t a b =  Optic' (IxStateT m) Unit n s t a b
+type ASetter n s t a b = ASetterM Identity n s t a b
+type ASetterM m n s t a b =  Optic' (IxStateT m) Unit n s t a b
 
 type AReview n s a = Optic (IxWriterT (IxStateT Identity)) s Unit n a s s a a
 type AReviewM m n s a = Optic (IxWriterT (IxStateT m)) (m s) Unit n (m a) s s a a
 
-type APrism' s a = APrism s s a a
-type APrism s t a b = forall m f i. (IxMonadState m, IxMonadWriter m, IxMonadLift Identity m, Monoid1 f) 
+type Prism' s a = Prism s s a a
+type Prism s t a b = forall m f i. (IxMonadState m, IxMonadWriter m, IxMonadLift Identity m, Monoid1 f) 
                    => Optic m t f (IxWriterT (IxStateT Identity)) i s t a b
 
-type APrismM' m s a = APrismM m s s a a
-type APrismM m s t a b = forall im f i. (IxMonadState im, IxMonadWriter im, IxMonadLift m im, Monoid1 f) 
+type PrismM' m s a = PrismM m s s a a
+type PrismM m s t a b = forall im f i. (IxMonadState im, IxMonadWriter im, IxMonadLift m im, Monoid1 f) 
                        => Optic im (m t) f (IxWriterT (IxStateT m)) (m i) s t a b
 
-type Lens n s t a b = forall m f. (IxMonadState m) => Optic' m f n s t a b
-type LensM m n s t a b = forall im f. (IxMonadState im, IxMonadLift m im) => Optic' im f n s t a b
+type Iso s t a b = forall m f n. (IxMonadState m, IxMonadLift n m) => Optic' m f (IxStateT n) s t a b
 
-type AnIso s t a b = forall m f n. (IxMonadState m, IxMonadLift n m) => Optic' m f (IxStateT n) s t a b
+type Lens' s a = Lens s s a a
+type Lens s t a b = forall m f n. (IxMonadState m, IxMonadLift n m) => Optic' m f (IxStateT n) s t a b
 
-type ALens' s a = ALens s s a a
-type ALens s t a b = forall m f n. (IxMonadState m, IxMonadLift n m) => Optic' m f (IxStateT n) s t a b
-type ALensF f s t a b = forall m n. (IxMonadState m, IxMonadLift n m) => Optic' m f (IxStateT n) s t a b
+type IndexedLens' i s a = IndexedLens i s s a a
+type IndexedLens i s t a b = forall m f n. (IxMonadState m, IxMonadLift n m) => Optic' m f (IxReaderStateT i n) s t a b
 
-type AIndexedLens' i s a = AIndexedLens i s s a a
-type AIndexedLens i s t a b = forall m f n. (IxMonadState m, IxMonadLift n m) => Optic' m f (IxReaderStateT i n) s t a b
+type LensM' m s t a b = LensM m s s a a
+type LensM m s t a b = forall im f. (IxMonadState im, IxMonadLift m im) => Optic' im f (IxStateInstrumentT m) s t a b
 
-type ALensM' m s t a b = ALensM m s s a a
-type ALensM m s t a b = LensM m (IxStateInstrumentT m) s t a b
+type LensIO' s a = LensIO s s a a
+type LensIO s t a b = forall m. (MonadIO m) => LensM m s t a b
 
-type ALensIO' s a = ALensIO s s a a
-type ALensIO s t a b = forall m. (MonadIO m) => ALensM m s t a b
+type ATraversal m f n s t a b = Optic' (IxStateT m) f n s t a b
 
-type Traversal' m f n s a = Traversal m f n s s a a
-type Traversal m f n s t a b = Optic' (IxStateT m) f n s t a b
+type Traversal' s a = Traversal s s a a
+type Traversal s t a b = forall m f n. (IxMonadState m, IxMonadLift n m, Monoid1 f) => Optic' m f (IxStateT n) s t a b
 
-type TraversalLike' n s a = TraversalLike n s s a a
-type TraversalLike n s t a b = forall m f. (IxMonadState m, Monoid1 f) => Optic' m f n s t a b
+type Traversal1' s a = Traversal1 s s a a
+type Traversal1 s t a b = forall m f n. (IxMonadState m, IxMonadLift n m, Semigroup1 f) => Optic' m f (IxStateT n) s t a b
 
-type ATraversal' s a = ATraversal s s a a
-type ATraversal s t a b = forall m f n. (IxMonadState m, IxMonadLift n m, Monoid1 f) => Optic' m f (IxStateT n) s t a b
-
-type ATraversal1' s a = ATraversal1 s s a a
-type ATraversal1 s t a b = forall m f n. (IxMonadState m, IxMonadLift n m, Semigroup1 f) => Optic' m f (IxStateT n) s t a b
-
-type AIndexedTraversal' i s a = AIndexedTraversal i s s a a
-type AIndexedTraversal i s t a b = forall m f n. (IxMonadState m, IxMonadLift n m, Monoid1 f) => Optic' m f (IxReaderStateT i n) s t a b
+type IndexedTraversal' i s a = IndexedTraversal i s s a a
+type IndexedTraversal i s t a b = forall m f n. (IxMonadState m, IxMonadLift n m, Monoid1 f) => Optic' m f (IxReaderStateT i n) s t a b
 
 -- TODO You can do better than IxState
-type AFold  s a = forall m f n. (IxMonadGet m, IxMonadLift n m, Monoid1 f)    => Optic' m f (IxStateT n) s s a a
-type AFold1 s a = forall m f n. (IxMonadGet m, IxMonadLift n m, Semigroup1 f) => Optic' m f (IxStateT n) s s a a 
+type Fold  s a = forall m f n. (IxMonadGet m, IxMonadLift n m, Monoid1 f)    => Optic' m f (IxStateT n) s s a a
+type Fold1 s a = forall m f n. (IxMonadGet m, IxMonadLift n m, Semigroup1 f) => Optic' m f (IxStateT n) s s a a 
 
 -- TODO You can do better than IxStateT
-type AIndexedFold  i s a = forall m f n. (IxMonadGet m, IxMonadLift n m, Monoid1 f) => Optic' m f (IxReaderStateT i n) s s a a
-type AIndexPreservingFold i s a = forall m f n. (IxMonadGet m, IxMonadLift n m, IxMonadReader i m, Monoid1 f) => Optic' m f (IxReaderStateT i n) s s a a
-type AIndexedFold1 i s a = forall m f n. (IxMonadGet m, IxMonadLift n m, Semigroup1 f) => Optic' m f (IxReaderStateT i n) s s a a
+type IndexedFold  i s a = forall m f n. (IxMonadGet m, IxMonadLift n m, Monoid1 f) => Optic' m f (IxReaderStateT i n) s s a a
+type IndexPreservingFold i s a = forall m f n. (IxMonadGet m, IxMonadLift n m, IxMonadReader i m, Monoid1 f) => Optic' m f (IxReaderStateT i n) s s a a
+type IndexedFold1 i s a = forall m f n. (IxMonadGet m, IxMonadLift n m, Semigroup1 f) => Optic' m f (IxReaderStateT i n) s s a a
 
 class Semigroup1 f where
     mappend1 :: f a -> f a -> f a

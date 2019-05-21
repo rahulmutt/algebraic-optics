@@ -22,39 +22,39 @@ import Data.Functor.Identity
 
 infixl 8 ^.., ^..!, ^?, ^?!, ^@.., ^@..!
 
-(^..) :: IxMonadGet n => s -> Getter Endo n s a -> [a]
+(^..) :: IxMonadGet n => s -> AGetter Endo n s a -> [a]
 (^..) s hom = appEndo (runIdentity (evalIxStateT (hom (igets (Endo . (:)))) s)) []
 
-(^..!) :: (IxMonadGet n, Monad m) => s -> GetterM m Endo n s a -> m [a]
+(^..!) :: (IxMonadGet n, Monad m) => s -> AGetterM m Endo n s a -> m [a]
 (^..!) s hom = fmap (flip appEndo []) (evalIxStateT (hom (igets (Endo . (:)))) s)
 
-(^?) :: IxMonadGet n => s -> Getter First n s a -> Maybe a
+(^?) :: IxMonadGet n => s -> AGetter First n s a -> Maybe a
 (^?) s hom = getFirst $ evalIxState (hom (igets pure)) s
 
-(^?!) :: (IxMonadGet n, Monad m) => s -> GetterM m First n s a -> m (Maybe a)
+(^?!) :: (IxMonadGet n, Monad m) => s -> AGetterM m First n s a -> m (Maybe a)
 (^?!) s hom = fmap getFirst $ evalIxStateT (hom (igets pure)) s
 
-has :: IxMonadGet n => Getter (Const Any) n s a -> s -> Bool
+has :: IxMonadGet n => AGetter (Const Any) n s a -> s -> Bool
 has hom = getAny . getConst . evalIxState (hom (igets (const (Const (Any True)))))
 
-hasn't :: IxMonadGet n => Getter (Const All) n s a -> s -> Bool
+hasn't :: IxMonadGet n => AGetter (Const All) n s a -> s -> Bool
 hasn't hom = getAll . getConst . evalIxState (hom (igets (const (Const (All False)))))
 
-folding :: Foldable f => (s -> f a) -> AFold s a
+folding :: Foldable f => (s -> f a) -> Fold s a
 folding f sm = 
    igetsM $ foldlM (\b a -> fmap (b `mappend1`) (evalIxStateT sm a)) mempty1 . f
 
-ifolding :: Foldable f => (s -> f (i, a)) -> AIndexedFold i s a
+ifolding :: Foldable f => (s -> f (i, a)) -> IndexedFold i s a
 ifolding f sm = 
    igetsM $ foldlM (\b (i, a) -> fmap (b `mappend1`) (evalIxReaderStateT sm i a)) mempty1 . f
    
-folded :: Foldable f => AIndexedFold Int (f a) a
+folded :: Foldable f => IndexedFold Int (f a) a
 folded = folded'
 
-folded64 :: Foldable f => AIndexedFold Int64 (f a) a
+folded64 :: Foldable f => IndexedFold Int64 (f a) a
 folded64 = folded'
 
-folded' :: (Foldable f, Integral i) => AIndexedFold i (f a) a
+folded' :: (Foldable f, Integral i) => IndexedFold i (f a) a
 folded' sm = 
    igetsM $ fmap fst 
           . foldlM (\(b, !n) a -> do
@@ -62,7 +62,7 @@ folded' sm =
                     return (b `mappend1` b', n + 1))
                   (mempty1, 0)
 
-unfolded :: (b -> Maybe (a, b)) -> AFold b a
+unfolded :: (b -> Maybe (a, b)) -> Fold b a
 unfolded f sm = igetsM go
    where go b 
            | Just (a, b') <- f b 
@@ -70,11 +70,11 @@ unfolded f sm = igetsM go
            | otherwise 
            = return mempty1
 
-iterated :: (a -> a) -> AFold1 a a
+iterated :: (a -> a) -> Fold1 a a
 iterated f sm = igetsM go
    where go a = liftA2 mappend1 (evalIxStateT sm a) (go (f a))
    
-filtered :: (a -> Bool) -> AFold a a
+filtered :: (a -> Bool) -> Fold a a
 filtered f sm = 
    igetsM $ \a ->
       if f a
@@ -84,11 +84,11 @@ filtered f sm =
 reversed :: (Monoid1 f, IxFunctor m, IxFunctor n) => Optic' m (ReverseMonoid f) n s t a b -> Optic' m f n s t a b
 reversed revHom sm = imap getReverseMonoid (revHom (imap ReverseMonoid sm))
 
-repeated :: AFold1 a a
+repeated :: Fold1 a a
 repeated sm = igetsM go
    where go a = liftA2 mappend1 (evalIxStateT sm a) (go a)
 
-replicated :: Int -> AFold a a
+replicated :: Int -> Fold a a
 replicated n sm = igetsM (go n)
    where go  0 _ = return mempty1
          go !n a = liftA2 mappend1 (evalIxStateT sm a) (go (n - 1) a)
@@ -115,82 +115,82 @@ droppingWhile f hom sm = imap computeDroppingWhile (hom (iget >>>= decideDrop))
            | otherwise = imap DroppingWhile sm
 
 
-foldMapOf :: (IxMonadGet n, Monoid r) => Getter (Const r) n s a -> (a -> r) -> s -> r
+foldMapOf :: (IxMonadGet n, Monoid r) => AGetter (Const r) n s a -> (a -> r) -> s -> r
 foldMapOf hom f = getConst . evalIxState (hom (igets (Const . f))) 
 
-foldOf :: (IxMonadGet n, Monoid a) => Getter (Const a) n s a -> s -> a
+foldOf :: (IxMonadGet n, Monoid a) => AGetter (Const a) n s a -> s -> a
 foldOf hom = foldMapOf hom id
 
-foldrOf :: IxMonadGet n => Getter Endo n s a -> (a -> r -> r) -> r -> s -> r
+foldrOf :: IxMonadGet n => AGetter Endo n s a -> (a -> r -> r) -> r -> s -> r
 foldrOf hom f r = ($ r) . appEndo . evalIxState (hom (igets (Endo . f))) 
 
-foldlOf :: IxMonadGet n => Getter (ReverseMonoid Endo) n s a -> (r -> a -> r) -> r -> s -> r
+foldlOf :: IxMonadGet n => AGetter (ReverseMonoid Endo) n s a -> (r -> a -> r) -> r -> s -> r
 foldlOf hom f r = ($ r) . appEndo . getReverseMonoid . evalIxState (hom (igets (ReverseMonoid . Endo . flip f))) 
 
-toListOf :: IxMonadGet n => Getter Endo n s a -> s -> [a]
+toListOf :: IxMonadGet n => AGetter Endo n s a -> s -> [a]
 toListOf hom s = s ^.. hom
 
-anyOf :: IxMonadGet n => Getter (Const Any) n s a -> (a -> Bool) -> s -> Bool
+anyOf :: IxMonadGet n => AGetter (Const Any) n s a -> (a -> Bool) -> s -> Bool
 anyOf hom f = getAny . getConst . evalIxState (hom (igets (Const . Any . f))) 
 
-allOf :: IxMonadGet n => Getter (Const All) n s a -> (a -> Bool) -> s -> Bool
+allOf :: IxMonadGet n => AGetter (Const All) n s a -> (a -> Bool) -> s -> Bool
 allOf hom f = getAll . getConst . evalIxState (hom (igets (Const . All . f))) 
 
-noneOf :: IxMonadGet n => Getter (Const All) n s a -> (a -> Bool) -> s -> Bool
+noneOf :: IxMonadGet n => AGetter (Const All) n s a -> (a -> Bool) -> s -> Bool
 noneOf hom f = getAll . getConst . evalIxState (hom (igets (Const . All . not . f))) 
 
-andOf :: IxMonadGet n => Getter (Const All) n s Bool -> s -> Bool
+andOf :: IxMonadGet n => AGetter (Const All) n s Bool -> s -> Bool
 andOf sm = allOf sm id
 
-orOf :: IxMonadGet n => Getter (Const Any) n s Bool -> s -> Bool
+orOf :: IxMonadGet n => AGetter (Const Any) n s Bool -> s -> Bool
 orOf sm = anyOf sm id
 
-traverseOf_ :: (IxMonadGet n, Applicative f) => Getter (Traversed f) n s a  -> (a -> f r) -> s -> f ()
+traverseOf_ :: (IxMonadGet n, Applicative f) => AGetter (Traversed f) n s a  -> (a -> f r) -> s -> f ()
 traverseOf_ hom f = getTraversed . evalIxState (hom (igets (\a -> Traversed (f a *> pure ())))) 
 
-forOf_ :: (IxMonadGet n, Applicative f) => Getter (Traversed f) n s a -> s -> (a -> f r) -> f ()
+forOf_ :: (IxMonadGet n, Applicative f) => AGetter (Traversed f) n s a -> s -> (a -> f r) -> f ()
 forOf_ hom s f = traverseOf_ hom f s
 
-sequenceAOf_ :: (IxMonadGet n, Applicative f) => Getter (Traversed f) n s (f r) -> s -> f ()
+sequenceAOf_ :: (IxMonadGet n, Applicative f) => AGetter (Traversed f) n s (f r) -> s -> f ()
 sequenceAOf_ hom = getTraversed . evalIxState (hom (igets (\a -> Traversed (a *> pure ())))) 
 
 -- Indexed folds
 
-(^@..) :: (IxMonadGet n, IxMonadReader i n) => s -> Getter Endo n s a -> [(i, a)]
+(^@..) :: (IxMonadGet n, IxMonadReader i n) => s -> AGetter Endo n s a -> [(i, a)]
 (^@..) s hom = appEndo (evalIxState (hom (iwith (\i a -> Endo ((i, a) :)))) s) []
 
-(^@..!) :: (IxMonadGet n, IxMonadReader i n, Monad m) => s -> GetterM m Endo n s a -> m [(i, a)]
+(^@..!) :: (IxMonadGet n, IxMonadReader i n, Monad m) => s -> AGetterM m Endo n s a -> m [(i, a)]
 (^@..!) s hom = fmap (flip appEndo []) (evalIxStateT (hom (iwith (\i a -> Endo ((i, a) :)))) s)
 
-(^@?) :: (IxMonadGet n, IxMonadReader i n) => s -> Getter First n s a -> Maybe (i, a)
+(^@?) :: (IxMonadGet n, IxMonadReader i n) => s -> AGetter First n s a -> Maybe (i, a)
 (^@?) s hom = getFirst $ evalIxState (hom (iwith (\i a -> pure (i, a)))) s
 
-(^@?!) :: (IxMonadGet n, IxMonadReader i n, Monad m) => s -> GetterM m First n s a -> m (Maybe (i, a))
+(^@?!) :: (IxMonadGet n, IxMonadReader i n, Monad m) => s -> AGetterM m First n s a -> m (Maybe (i, a))
 (^@?!) s hom = fmap getFirst $ evalIxStateT (hom (iwith (\i a -> pure (i, a)))) s
 
-ifoldMapOf :: (IxMonadGet n, IxMonadReader i n, Monoid r) => Getter (Const r) n s a -> (i -> a -> r) -> s -> r
+ifoldMapOf :: (IxMonadGet n, IxMonadReader i n, Monoid r) => AGetter (Const r) n s a -> (i -> a -> r) -> s -> r
 ifoldMapOf hom f = getConst . evalIxState (hom (iwith (\i a -> pure (f i a))))
 
-ifoldrOf :: (IxMonadGet n, IxMonadReader i n) => Getter Endo n s a -> (i -> a -> r -> r) -> r -> s -> r
+ifoldrOf :: (IxMonadGet n, IxMonadReader i n) => AGetter Endo n s a -> (i -> a -> r -> r) -> r -> s -> r
 ifoldrOf hom f r = ($ r) . appEndo . evalIxState (hom (iwith (\i a -> Endo (f i a))))
 
-ifoldlOf :: (IxMonadGet n, IxMonadReader i n) => Getter (ReverseMonoid Endo) n s a -> (i -> r -> a -> r) -> r -> s -> r
+ifoldlOf :: (IxMonadGet n, IxMonadReader i n) => AGetter (ReverseMonoid Endo) n s a -> (i -> r -> a -> r) -> r -> s -> r
 ifoldlOf hom f r = ($ r) . appEndo . getReverseMonoid . evalIxState (hom n) 
   where n = iwith (\i a -> ReverseMonoid (Endo (\r -> f i r a)))
 
-itoListOf :: (IxMonadGet n, IxMonadReader i n) => Getter Endo n s a -> s -> [(i, a)]
+itoListOf :: (IxMonadGet n, IxMonadReader i n) => AGetter Endo n s a -> s -> [(i, a)]
 itoListOf hom s = s ^@.. hom
 
-ianyOf :: (IxMonadGet n, IxMonadReader i n) => Getter (Const Any) n s a -> (i -> a -> Bool) -> s -> Bool
+ianyOf :: (IxMonadGet n, IxMonadReader i n) => AGetter (Const Any) n s a -> (i -> a -> Bool) -> s -> Bool
 ianyOf hom f = getAny . getConst . evalIxState (hom (iwith (\i a -> pure (Any (f i a)))))
 
-iallOf :: (IxMonadGet n, IxMonadReader i n) => Getter (Const All) n s a -> (i -> a -> Bool) -> s -> Bool
+iallOf :: (IxMonadGet n, IxMonadReader i n) => AGetter (Const All) n s a -> (i -> a -> Bool) -> s -> Bool
 iallOf hom f = getAll . getConst . evalIxState (hom (iwith (\i a -> pure (All (f i a))))) 
 
-inoneOf :: (IxMonadGet n, IxMonadReader i n) => Getter (Const All) n s a -> (i -> a -> Bool) -> s -> Bool
+inoneOf :: (IxMonadGet n, IxMonadReader i n) => AGetter (Const All) n s a -> (i -> a -> Bool) -> s -> Bool
 inoneOf hom f = getAll . getConst . evalIxState (hom (iwith (\i a -> pure (All (not (f i a)))))) 
 
-ifiltered :: (i -> a -> Bool) -> AIndexPreservingFold i a a
+ifiltered :: (i -> a -> Bool) -> IndexPreservingFold i a a
 ifiltered f sm = 
    iwithM (\i a -> 
       if f i a

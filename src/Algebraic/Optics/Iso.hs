@@ -13,7 +13,7 @@ module Algebraic.Optics.Iso where
 import Algebraic.Optics.Type
 import Algebraic.Optics.Internal.Indexed
 
-iso :: (s -> a) -> (b -> t) -> AnIso s t a b 
+iso :: (s -> a) -> (b -> t) -> Iso s t a b 
 iso f g sm = 
     istateM $ \s -> do
         (r, b) <- runIxStateT sm (f s)

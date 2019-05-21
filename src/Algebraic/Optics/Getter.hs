@@ -17,30 +17,30 @@ import Data.Functor.Identity
 
 infixl 8 ^., ^.!, ^@., ^@.!
 
-to :: (s -> a) -> AGetter s a
+to :: (s -> a) -> Getter s a
 to f sm = igetsM (evalIxStateT sm . f)
 
-ito :: (s -> (i, a)) -> AIndexedGetter i s a
+ito :: (s -> (i, a)) -> IndexedGetter i s a
 ito f sm = igetsM (\s -> let (i, a) = f s in evalIxReaderStateT sm i a)
 
-like :: a -> ARelaxedGetter s a
+like :: a -> RelaxedGetter s a
 like a sm = ilift (evalIxStateT sm a)
 
-ilike :: i -> a -> ARelaxedIndexedGetter i s a
+ilike :: i -> a -> RelaxedIndexedGetter i s a
 ilike i a sm = ilift (evalIxReaderStateT sm i a)
 
-(^.) :: (IxMonadState n) => s -> Getter Identity n s a -> a
+(^.) :: (IxMonadState n) => s -> AGetter Identity n s a -> a
 (^.) t hom = runIdentity $ evalIxState (hom (imap pure iget)) t
 
-(^.!) :: (IxMonadState n, Monad m) => s -> GetterM m Identity n s a -> m a
+(^.!) :: (IxMonadState n, Monad m) => s -> AGetterM m Identity n s a -> m a
 (^.!) t hom = fmap runIdentity $ evalIxStateT (hom (imap pure iget)) t
 
-(^@.) :: (IxMonadState n, IxMonadReader i n) => s -> Getter Identity n s a -> (i, a)
+(^@.) :: (IxMonadState n, IxMonadReader i n) => s -> AGetter Identity n s a -> (i, a)
 (^@.) t hom = runIdentity $ evalIxState (hom n) t
   where n = iask >>>= (\i -> 
             istate (\a -> (pure (i, a), a)))
 
-(^@.!) :: (IxMonadState n, IxMonadReader i n, Monad m) => s -> GetterM m Identity n s a -> m (i, a)
+(^@.!) :: (IxMonadState n, IxMonadReader i n, Monad m) => s -> AGetterM m Identity n s a -> m (i, a)
 (^@.!) t hom = fmap runIdentity $ evalIxStateT (hom n) t
   where n = iask >>>= (\i -> 
             istate (\a -> (pure (i, a), a)))

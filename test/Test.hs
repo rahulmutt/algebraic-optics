@@ -15,20 +15,20 @@ data University a b =
              , _departments :: IORef [Department]
              , _extras2 :: IORef (Either String b)}
 
-name :: ALens' (University a b) String
+name :: Lens' (University a b) String
 name = lens _name (\s a -> s { _name = a })
 
-extras :: ALens (University a c) (University b c) (Maybe a) (Maybe b)
+extras :: Lens (University a c) (University b c) (Maybe a) (Maybe b)
 extras = lens _extras (\s b -> s { _extras = b })
 
-budget :: ALens' Department Int
+budget :: Lens' Department Int
 budget = lens _budget (\s a -> s { _budget = a })
 
-departments :: ALensIO' (University a b) [Department]
+departments :: LensIO' (University a b) [Department]
 departments = mrefLens _departments
 
 extras2 :: (HasEquality (University c a) (University c b) (Either String a) (Either String b)) 
-        => ALensIO (University c a) (University c b) (Either String a) (Either String b)
+        => LensIO (University c a) (University c b) (Either String a) (Either String b)
 extras2 = prefLens _extras2 (\s b -> s { _extras2 = b } )
 
 main :: IO ()

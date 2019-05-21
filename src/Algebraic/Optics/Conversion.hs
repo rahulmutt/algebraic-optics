@@ -13,5 +13,5 @@ module Algebraic.Optics.Conversion where
 import Algebraic.Optics.Type
 -- import Algebraic.Optics.Internal.Indexed
 
-fromVL :: (forall f. (Functor f) => (a -> f b) -> (s -> f t)) -> ALens s t a b
+fromVL :: (forall f. (Functor f) => (a -> f b) -> (s -> f t)) -> Lens s t a b
 fromVL _lens _sm = undefined -- TODO: istateM (lens (runIxStateT sm))

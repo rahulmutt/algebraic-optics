@@ -14,9 +14,9 @@ import Algebraic.Optics.Prism
 import Algebraic.Optics.Type
 
 class AsEmpty a where
-    _Empty :: APrism' a ()
+    _Empty :: Prism' a ()
 
-    default _Empty :: (Monoid a, Eq a) => APrism' a ()
+    default _Empty :: (Monoid a, Eq a) => Prism' a ()
     _Empty = prism (const mempty) 
                    (\a -> if a == mempty
                           then Right ()
