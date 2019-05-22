@@ -4,7 +4,6 @@ import Test.Tasty.HUnit
 import Algebraic.Optics
 import Control.Monad
 import Data.IORef
-import Data.Function
 
 data Department = Department { _budget :: Int }
   deriving (Eq, Show)
@@ -68,6 +67,7 @@ main = defaultMain $
     assertEqualIO "mapMOf traversal"  (replicate 4 ()) $ mapMOf traversed print [1,2,3,4 :: Int]
     assertEqual "dropping traversal" [2,3,4] $ [1,2,3,4 :: Int] ^.. dropping 1 traversed
     assertEqual "taking traversal" [1, 2] $ [1,2,3,4 :: Int] ^.. taking 2 traversed
+    assertEqual "failing traversal" [4] $ [1,2,3,4 :: Int] ^.. failing (element 6) (element 3)
 
 assertEqualIO :: (Eq a, Show a) => String -> a -> IO a -> Assertion
 assertEqualIO msg exp act = join (assertEqual msg <$> pure exp <*> act)

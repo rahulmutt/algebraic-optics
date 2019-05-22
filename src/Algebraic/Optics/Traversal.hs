@@ -16,6 +16,7 @@ import Algebraic.Optics.Internal.Indexed
 import Data.Int
 import Data.Functor.Identity
 import Data.Monoid
+import Data.Maybe
 import Control.Arrow
 import Control.Applicative
 import Control.Monad.Reader
@@ -38,6 +39,27 @@ itraverseL sm = istateM (fmap (first fst) . mapAccumLM accum (mempty1, 0))
   where accum (gx, !n) a = do
           (gx', b) <- runIxReaderStateT sm n a
           return ((gx `mappend1` gx', n + 1), b)
+
+elementOf :: ( IxMonadStateHoist m (StateT Int p) m' p
+             , IxMonadStateHoist n' p n (StateT Int p)
+             , Monoid1 f )
+          => Optic' m f n s t a a -> Int -> Optic' m' f n' s t a a
+elementOf hom n = elementsOf hom (== n)
+
+-- TODO: Figure out how to make this result indexed
+elementsOf :: ( IxMonadStateHoist m (StateT Int p) m' p
+             , IxMonadStateHoist n' p n (StateT Int p)
+             , Monoid1 f )
+          => Optic' m f n s t a a -> (Int -> Bool) -> Optic' m' f n' s t a a
+elementsOf hom pred sm = 
+  istateHoist g (hom (istateHoist f sm))
+  where f q a = do
+          i <- get
+          put (i + 1)
+          if pred i     
+          then lift (q a)
+          else return (mempty1, a)
+        g q s = fmap fst (runStateT (q s) 0)
 
 element :: Traversable t => Int -> IndexedTraversal' Int (t a) a
 element i = elements (== i)
@@ -74,9 +96,14 @@ mapAccumLOf :: (IxMonadState n, IxMonadLift (State acc) n)
             => ATraversal (State acc) Unit n s t a b -> (acc -> a -> (acc, b)) -> acc -> s -> (acc, t) 
 mapAccumLOf hom f acc0 s = swap (runState (execIxStateT (hom (istateM g)) s) acc0)
   where g a = do
-          acc <- get
-          let (acc', b) = f acc a
-          put acc'
+          b <- state (\acc -> swap (f acc a))
+          return (pure (), b)
+
+mapAccumROf :: (IxMonadState n, IxMonadLift (ReverseState acc) n) 
+            => ATraversal (ReverseState acc) Unit n s t a b -> (acc -> a -> (acc, b)) -> acc -> s -> (acc, t) 
+mapAccumROf hom f acc0 s = swap (runReverseState (execIxStateT (hom (istateM g)) s) acc0)
+  where g a = do
+          b <- state (\acc -> swap (f acc a))
           return (pure (), b)
 
 failover :: (Alternative f, IxMonadState n) => ATraversal Identity (Const Any) n s t a b -> (a -> b) -> s -> f t 
@@ -120,6 +147,67 @@ dropping n hom sm =
           else return (mempty1, a)
         g q s = fmap fst (runStateT (q s) 1)
 
+failing :: (IxMonadState m, IxFunctor n) 
+        => Optic' m (ProductMonoid (Const Any) f) n s t a b 
+        -> Optic' m f n s t a b 
+        -> Optic' m f n s t a b
+failing homA homB sm = 
+  iget >>>= (\s ->
+    homA (imap (\fx -> ProductMonoid (Const (Any True)) fx) sm) >>>= 
+      (\(ProductMonoid any fx) ->
+        if any == Const (Any False)
+        then iput s >>>= const (homB sm)
+        else ireturn fx))
+
+-- TODO: Verify correctness
+deepOf :: (IxMonadState m, IxFunctor n)
+        => Optic' m f m s t s t 
+        -> Optic' m (ProductMonoid (Const Any) f) n s t a b 
+        -> Optic' m f n s t a b
+deepOf recHom hom sm = go
+  where go = iget >>>= (\s ->
+               hom (imap (\fx -> ProductMonoid (Const (Any True)) fx) sm) >>>=
+                (\(ProductMonoid any fx) ->
+                  if any == Const (Any False)
+                  then iput s >>>= const (recHom go)
+                  else ireturn fx))
+
+ignored :: (Monoid1 f, IxPointed m, Monad p) => Optic' m f (IxReaderStateT i p) s s a b
+ignored _ = ireturn mempty1
+
+-- partsOf :: (IxFunctor m, IxFunctor n) => Optic' m (Singular f) n s t a a -> Optic' m f n s t [a] [a]
+-- partsOf hom sm = 
+
+singular :: ( IxMonadStateHoist m (StateT Bool p) m' p
+            , IxMonadStateHoist n' p n (StateT Bool p) )
+           => Optic' m (Singular f) n s t a a 
+           -> Optic' m' f n' s t a a
+singular hom sm = 
+  imap getSingular' (istateHoist g (hom (istateHoist f (imap (Singular . Just) sm))))
+  where getSingular' = fromMaybe (error "singular: empty traversal") . getSingular
+        f q a = do
+          m <- get
+          case m of
+            True -> return (mempty1, a)
+            False -> put True >> lift (q a)
+        g q s = fmap fst (runStateT (q s) False)
+
+unsafeSingular :: ( IxMonadStateHoist m (StateT Bool p) m' p
+                  , IxMonadStateHoist n' p n (StateT Bool p) )
+               => Optic' m (Singular f) n s t a a 
+               -> Optic' m' f n' s t a a
+unsafeSingular hom sm = 
+  imap getSingular' (istateHoist g (hom (istateHoist f (imap (Singular . Just) sm))))
+  where getSingular' = fromMaybe (error "unsafeSingular: empty traversal") . getSingular
+        f q a = do
+          m <- get
+          case m of
+            True  -> error "unsafeSingular: multiple traversals"
+            False -> put True >> lift (q a)
+        g q s = fmap fst (runStateT (q s) False)
+
+-- Utilities
+
 mapAccumLM :: (Traversable t, Monad m) => (a -> b -> m (a, c)) -> a -> t b -> m (a, t c) 
 mapAccumLM f a tb = fmap swap (runStateT (traverse g tb) a)
   where g b = do
@@ -130,3 +218,13 @@ mapAccumLM f a tb = fmap swap (runStateT (traverse g tb) a)
 
 swap :: (a, b) -> (b, a)
 swap (x, y) = (y, x)
+
+newtype Singular f a = Singular { getSingular :: Maybe (f a) }
+
+instance Semigroup1 (Singular f) where
+    mappend1 (Singular Nothing) a = a
+    mappend1 a (Singular Nothing) = a
+    mappend1 a _ = a
+
+instance Monoid1 (Singular f) where
+    mempty1 = Singular Nothing

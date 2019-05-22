@@ -16,6 +16,7 @@ import Data.Monoid
 import Data.Functor.Const
 import Algebraic.Optics.Internal.Indexed
 import Control.Monad.Reader
+import Control.Monad.State
 
 type Nat f p g = forall x. g (p x) -> f (p x)
 
@@ -30,8 +31,11 @@ type IndexedGetter i s a = forall m f n. (IxMonadState m, IxMonadLift n m) => Op
 type RelaxedGetter s a = forall m f n. IxMonadLift n m => Optic' m f (IxStateT n) s s a a
 type RelaxedIndexedGetter i s a = forall m f n. IxMonadLift n m => Optic' m f (IxReaderStateT i n) s s a a
 
-type AGetter f n s a = AGetterM Identity f n s a
-type AGetterM m f n s a = Optic' (IxStateT m) f n s s a a
+type AFold f n s a = AFoldM Identity f n s a
+type AFoldM m f n s a = Optic' (IxStateT m) f n s s a a
+
+type AGetter n s a = AGetterM Identity n s a
+type AGetterM m n s a = AFoldM m Identity n s a
 
 type ASetter n s t a b = ASetterM Identity n s t a b
 type ASetterM m n s t a b =  Optic' (IxStateT m) Unit n s t a b
@@ -123,3 +127,40 @@ instance (Monoid1 f) => Monoid1 (ReverseMonoid f) where
 
 newtype Unit a = Unit (Const () a)
   deriving (Semigroup, Monoid, Functor, Applicative, Semigroup1, Monoid1)
+
+data ProductMonoid f g a = ProductMonoid { getProductFirst :: f a, getProductSecond :: g a }
+
+instance (Semigroup1 f, Semigroup1 g) => Semigroup1 (ProductMonoid f g) where
+    mappend1 (ProductMonoid f1 g1) (ProductMonoid f2 g2) = ProductMonoid (f1 `mappend1` f2) (g1 `mappend1` g2)
+
+instance (Monoid1 f, Monoid1 g) => Monoid1 (ProductMonoid f g) where
+    mempty1 = ProductMonoid mempty1 mempty1
+
+-- Reverse State Monad
+
+newtype ReverseState s a = ReverseState { runReverseState :: s -> (a, s) }
+
+instance Functor (ReverseState s) where
+    fmap f (ReverseState rsm) = ReverseState $ \s ->
+        let (a, s') = rsm s
+        in (f a, s')
+
+instance Applicative (ReverseState s) where
+    pure a = ReverseState $ \s -> (a, s)
+    ReverseState rsmab <*> ReverseState rsma = ReverseState $ \s ->
+        let (ab, s'')  = rsmab s'
+            (a,  s')   = rsma s
+        in (ab a, s'')
+
+instance Monad (ReverseState s) where
+    ReverseState rsm >>= f = ReverseState $ \s ->
+        let (a, s'') = rsm s'
+            (b, s')  = runReverseState (f a) s
+        in (b, s'')
+
+instance MonadFix (ReverseState s) where
+    mfix f = ReverseState $ \s -> fix (\(~(a, _)) -> runReverseState (f a) s)
+
+instance MonadState s (ReverseState s) where
+    get = ReverseState $ \s -> (s, s)
+    put s = ReverseState $ \_ -> ((), s)

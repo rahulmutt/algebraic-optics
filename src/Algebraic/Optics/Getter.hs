@@ -29,18 +29,18 @@ like a sm = ilift (evalIxStateT sm a)
 ilike :: i -> a -> RelaxedIndexedGetter i s a
 ilike i a sm = ilift (evalIxReaderStateT sm i a)
 
-(^.) :: (IxMonadState n) => s -> AGetter Identity n s a -> a
+(^.) :: (IxMonadState n) => s -> AGetter n s a -> a
 (^.) t hom = runIdentity $ evalIxState (hom (imap pure iget)) t
 
-(^.!) :: (IxMonadState n, Monad m) => s -> AGetterM m Identity n s a -> m a
+(^.!) :: (IxMonadState n, Monad m) => s -> AGetterM m n s a -> m a
 (^.!) t hom = fmap runIdentity $ evalIxStateT (hom (imap pure iget)) t
 
-(^@.) :: (IxMonadState n, IxMonadReader i n) => s -> AGetter Identity n s a -> (i, a)
+(^@.) :: (IxMonadState n, IxMonadReader i n) => s -> AGetter n s a -> (i, a)
 (^@.) t hom = runIdentity $ evalIxState (hom n) t
   where n = iask >>>= (\i -> 
             istate (\a -> (pure (i, a), a)))
 
-(^@.!) :: (IxMonadState n, IxMonadReader i n, Monad m) => s -> AGetterM m Identity n s a -> m (i, a)
+(^@.!) :: (IxMonadState n, IxMonadReader i n, Monad m) => s -> AGetterM m n s a -> m (i, a)
 (^@.!) t hom = fmap runIdentity $ evalIxStateT (hom n) t
   where n = iask >>>= (\i -> 
             istate (\a -> (pure (i, a), a)))

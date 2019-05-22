@@ -8,7 +8,9 @@
 -- Portability :  non-portable
 ----------------------------------------------------------------------------
 module Algebraic.Optics 
-  (module X)
+  ( module X
+  , (&)
+  )
 where
 
 import Algebraic.Optics.Equality  as X
@@ -20,3 +22,5 @@ import Algebraic.Optics.Review    as X
 import Algebraic.Optics.Setter    as X
 import Algebraic.Optics.Traversal as X
 import Algebraic.Optics.Type      as X
+
+import Data.Function ((&))

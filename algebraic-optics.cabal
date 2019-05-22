@@ -49,6 +49,7 @@ library
                        TypeFamilies
                        DefaultSignatures
                        GeneralizedNewtypeDeriving
+                       RecursiveDo
 
 test-suite unit-tests
   type:                exitcode-stdio-1.0
