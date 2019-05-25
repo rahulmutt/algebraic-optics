@@ -43,8 +43,11 @@ type ASetterM m n s t a b =  Optic' (IxStateT m) Unit n s t a b
 type AReview n s a = AReviewM Identity n s a
 type AReviewM m n s a = Optic (IxWriterT (IxStateT m)) (m s) Unit n (m a) s s a a
 
-type APrism' f n s a = APrism f n s s a a
-type APrism f n s t a b = Optic (IxWriterT (IxStateT Identity)) t f n b s t a b
+type APrism' n s a = APrism n s s a a
+type APrism n s t a b = forall f. (Monoid1 f) => APrismF f n s t a b
+
+type APrismF' f n s a = APrismF f n s s a a
+type APrismF f n s t a b = forall i. Optic (IxWriterT (IxStateT Identity)) (Identity t) f n i s t a b
 
 type Prism' s a = Prism s s a a
 type Prism s t a b = PrismM Identity s t a b

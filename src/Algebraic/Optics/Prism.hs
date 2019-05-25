@@ -41,8 +41,8 @@ prism' :: (b -> s) -> (s -> Maybe a) -> Prism s s a b
 prism' f g = prism f (\s -> maybe (Left s) Right $ g s)
 
 -- TODO: Generlize this to s t a b 
-withPrism :: (IxMonadGet n, IxMonadWriter n) => (forall f. APrism f n s t a a) -> ((a -> t) -> (s -> Either t a) -> r) -> r 
-withPrism prism f = f bt (matching prism)
+withPrism :: (IxMonadGet n, IxMonadWriter n) => APrism n s t a a -> ((a -> t) -> (s -> Either t a) -> r) -> r 
+withPrism prism f = f (runIdentity . bt . Identity) (matching prism)
   where bt b 
           | Just s <- execIxWriterT (prism (imap (pure :: () -> Unit ()) (itell b))) = s
           | otherwise = error "Bad review"
@@ -59,15 +59,15 @@ _Just = prism Just (maybe (Left Nothing) Right)
 _Nothing :: Prism' (Maybe a) ()
 _Nothing = prism' (const Nothing) (maybe (Just ()) (const Nothing))
 
-below :: Traversable t => APrism' f n s a -> Prism' (t s) (t a)
-below _hom = undefined -- prism' (hom # )
+below :: (IxMonadWriter n, IxMonadState n, Traversable t) => APrism' n s a -> Prism' (t s) (t a)
+below p = prism' (fmap (p #)) (either (const Nothing) Just . traverse (matching p))
 
 -- TODO: Generlize this to s t a b 
-isn't :: IxMonad n => APrism (Const Any) n s t a a -> s -> Bool
+isn't :: IxMonad n => APrismF (Const Any) n s t a a -> s -> Bool
 isn't hom = not . getAny . getConst .  evalIxState (evalIxWriterT (hom (ireturn (Const (Any True)))))
 
 -- TODO: Generlize this to s t a b 
-matching :: IxMonadGet n => APrism First n s t a a -> s -> Either t a
+matching :: IxMonadGet n => APrismF First n s t a a -> s -> Either t a
 matching hom s = 
     case runIxState (evalIxWriterT (hom (igets pure))) s of
         (First (Just a), _) -> Right a

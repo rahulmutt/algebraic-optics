@@ -23,13 +23,13 @@ import Data.Functor.Identity
 infixl 8 ^.., ^..!, ^?, ^?!, ^@.., ^@..!
 
 (^..) :: IxMonadGet n => s -> AFold Endo n s a -> [a]
-(^..) s hom = appEndo (runIdentity (evalIxStateT (hom (igets (Endo . (:)))) s)) []
+(^..) s hom = runIdentity (s ^..! hom)
 
 (^..!) :: (IxMonadGet n, Monad m) => s -> AFoldM m Endo n s a -> m [a]
 (^..!) s hom = fmap (flip appEndo []) (evalIxStateT (hom (igets (Endo . (:)))) s)
 
 (^?) :: IxMonadGet n => s -> AFold First n s a -> Maybe a
-(^?) s hom = getFirst $ evalIxState (hom (igets pure)) s
+(^?) s hom = runIdentity (s ^?! hom)
 
 (^?!) :: (IxMonadGet n, Monad m) => s -> AFoldM m First n s a -> m (Maybe a)
 (^?!) s hom = fmap getFirst $ evalIxStateT (hom (igets pure)) s
