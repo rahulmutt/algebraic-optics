@@ -58,6 +58,7 @@ main = defaultMain $
 
     assertEqualIO "preview first ioref"  (Just 4) $ uni ^?! departments . traversed . budget
 
+    assertEqual "preview Just" (Just True) $ Just True ^? _Just
     assertEqual "preview Just ioref" (Just "1") $ uni ^? extras . _Just
     assertEqual "preview Nothing ioref" Nothing   $ uni ^? extras . _Nothing
     assertEqual "review Just" (Just True) $ _Just # True

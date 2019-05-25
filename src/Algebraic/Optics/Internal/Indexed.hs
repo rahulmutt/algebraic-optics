@@ -14,86 +14,86 @@ import Control.Monad.Reader
 import Data.Functor.Identity
 
 class IxPointed m where
-    ireturn :: a -> m s i i a
+    ireturn :: a -> m i i a
 
 class IxFunctor m where
-    imap :: (a -> b) -> m s i j a -> m s i j b
+    imap :: (a -> b) -> m i j a -> m i j b
 
 class (IxFunctor m, IxPointed m) => IxApplicative m where
-    iap :: m s i j (a -> b) -> m s j k a -> m s i k b
+    iap :: m i j (a -> b) -> m j k a -> m i k b
 
 class IxApplicative m => IxMonad m where
-    ibind :: m s i j a -> (a -> m s j k b) -> m s i k b
+    ibind :: m i j a -> (a -> m j k b) -> m i k b
 
-(>>>=) :: IxMonad m => m s i j a -> (a -> m s j k b) -> m s i k b
+(>>>=) :: IxMonad m => m i j a -> (a -> m j k b) -> m i k b
 (>>>=) = ibind
 
 infixl 1 >>>=
 
 class IxMonad m => IxMonadReader r m | m -> r where
-    iask :: m s i i r
+    iask :: m i i r
 
 class IxMonad m => IxMonadGet m where
-    iget :: m s i i i
+    iget :: m i i i
 
-igets :: IxMonadGet m => (i -> r) -> m s i i r
+igets :: IxMonadGet m => (i -> r) -> m i i r
 igets f = imap f iget
 
-iwith :: (IxMonadReader r m, IxMonadGet m) => (r -> i -> t) -> m s i i t
+iwith :: (IxMonadReader r m, IxMonadGet m) => (r -> i -> t) -> m i i t
 iwith f = iask >>>= igets . f
 
 class IxMonadGet m => IxMonadState m where
-    iput :: j -> m s i j ()
+    iput :: j -> m i j ()
 
-imodify :: IxMonadState m => (i -> j) -> m s i j ()
+imodify :: IxMonadState m => (i -> j) -> m i j ()
 imodify f = iget >>>= iput . f 
 
-istate :: IxMonadState m => (s -> (a, t)) -> m w s t a
+istate :: IxMonadState m => (s -> (a, t)) -> m s t a
 istate f = iget >>>= (\s -> let (a, t) = f s in iput t >>>= (const (ireturn a)))
 
-iaskstate :: (IxMonadState m, IxMonadReader i m) => (i -> s -> (a, t)) -> m w s t a
+iaskstate :: (IxMonadState m, IxMonadReader i m) => (i -> s -> (a, t)) -> m s t a
 iaskstate f = iask >>>= istate . f
 
-class IxMonadWriter m where
-    itell :: t -> m t i i ()
+class IxMonadWriter w m where
+    itell :: w -> m i i ()
 
 class (Monad m, IxMonad n) => IxMonadLift m n | n -> m where
-    ilift :: m a -> n s i i a
+    ilift :: m a -> n i i a
 
-igetsM :: (IxMonadGet m, IxMonadLift n m) => (i -> n r) -> m s i i r
+igetsM :: (IxMonadGet m, IxMonadLift n m) => (i -> n r) -> m i i r
 igetsM f = iget >>>= ilift . f
 
-iwithM :: (IxMonadReader r m, IxMonadGet m, IxMonadLift n m) => (r -> i -> n t) -> m s i i t
+iwithM :: (IxMonadReader r m, IxMonadGet m, IxMonadLift n m) => (r -> i -> n t) -> m i i t
 iwithM f = iask >>>= igetsM . f
 
-imodifyM :: (IxMonadState m, IxMonadLift n m) => (i -> n j) -> m s i j ()
+imodifyM :: (IxMonadState m, IxMonadLift n m) => (i -> n j) -> m i j ()
 imodifyM f = igetsM f >>>= iput
 
-istateM :: (IxMonadState im, IxMonadLift m im) => (s -> m (a, t)) -> im w s t a
+istateM :: (IxMonadState im, IxMonadLift m im) => (s -> m (a, t)) -> im s t a
 istateM f = 
     iget >>>= (\s -> 
     ilift (f s) >>>= (\(a, t) -> 
     iput t >>>= (const (ireturn a))))
 
-iaskstateM :: (IxMonadState im, IxMonadLift m im, IxMonadReader i im) => (i -> s -> m (a, t)) -> im w s t a
+iaskstateM :: (IxMonadState im, IxMonadLift m im, IxMonadReader i im) => (i -> s -> m (a, t)) -> im s t a
 iaskstateM f = iask >>>= istateM . f
 
 class (IxMonadState m, IxMonadState n, IxMonadLift p m, IxMonadLift q n) =>
        IxMonadStateHoist m p n q | m q -> n p, n p -> m q, m n -> p q where
-    istateHoist :: ((i -> p (a, j)) -> (i -> q (a, j))) -> m s i j a -> n s i j a
+    istateHoist :: ((i -> p (a, j)) -> (i -> q (a, j))) -> m i j a -> n i j a
 
-type IxState s i j a = IxStateT Identity s i j a
+type IxState i j a = IxStateT Identity i j a
 
-runIxState :: IxState w s t a -> s -> (a, t)
+runIxState :: IxState s t a -> s -> (a, t)
 runIxState m s = runIdentity (runIxStateT m s)
 
-execIxState :: IxState w s t a -> s -> t
+execIxState :: IxState s t a -> s -> t
 execIxState ixs = snd . runIxState ixs
 
-evalIxState :: IxState w s t a -> s -> a
+evalIxState :: IxState s t a -> s -> a
 evalIxState ixs = fst . runIxState ixs
 
-newtype IxStateT m s i j a =
+newtype IxStateT m i j a =
     IxStateT { runIxStateT :: i -> m (a, j) }
 
 instance Applicative f => IxPointed (IxStateT f) where
@@ -128,19 +128,19 @@ instance Monad m => IxMonadState (IxStateT m) where
 instance Monad m => IxMonadLift m (IxStateT m) where
     ilift ma = IxStateT $ \i -> ma >>= (\a -> return (a, i))
 
-instance Monad m => IxMonadWriter (IxStateT m) where
+instance Monad m => IxMonadWriter b (IxStateT m) where
     itell _ = ireturn ()
 
 instance (Monad m, Monad n) => IxMonadStateHoist (IxStateT m) m (IxStateT n) n where
     istateHoist hoist (IxStateT f) = IxStateT (hoist f)
 
-execIxStateT :: Functor m => IxStateT m w s t a -> s -> m t
+execIxStateT :: Functor m => IxStateT m s t a -> s -> m t
 execIxStateT ixs = fmap snd . runIxStateT ixs
 
-evalIxStateT :: Functor m => IxStateT m w s t a -> s -> m a
+evalIxStateT :: Functor m => IxStateT m s t a -> s -> m a
 evalIxStateT ixs = fmap fst . runIxStateT ixs
 
-newtype IxReaderStateT r m s i j a =
+newtype IxReaderStateT r m i j a =
     IxReaderStateT { unIxReaderStateT :: r -> i -> m (a, j) }
 
 instance Applicative f => IxPointed (IxReaderStateT r f) where
@@ -175,25 +175,25 @@ instance Monad m => IxMonadState (IxReaderStateT r m) where
 instance Monad m => IxMonadLift m (IxReaderStateT r m) where
     ilift ma = IxReaderStateT $ \_ i -> ma >>= (\a -> return (a, i))
 
-instance Monad m => IxMonadWriter (IxReaderStateT r m) where
+instance Monad m => IxMonadWriter b (IxReaderStateT r m) where
     itell _ = ireturn ()
 
 instance (Monad m, Monad n) => IxMonadStateHoist (IxReaderStateT r m) m (IxReaderStateT r n) n where
     istateHoist hoist (IxReaderStateT f) = IxReaderStateT (\r i -> hoist (f r) i)
 
-runIxReaderStateT :: IxReaderStateT r m w s t a -> r -> s -> m (a, t)
+runIxReaderStateT :: IxReaderStateT r m s t a -> r -> s -> m (a, t)
 runIxReaderStateT = unIxReaderStateT
 
-execIxReaderStateT :: Functor m => IxReaderStateT r m w s t a -> r -> s -> m t
+execIxReaderStateT :: Functor m => IxReaderStateT r m s t a -> r -> s -> m t
 execIxReaderStateT ixs r = fmap snd . runIxReaderStateT ixs r
 
-evalIxReaderStateT :: Functor m => IxReaderStateT r m w s t a -> r -> s -> m a
+evalIxReaderStateT :: Functor m => IxReaderStateT r m s t a -> r -> s -> m a
 evalIxReaderStateT ixs r = fmap fst . runIxReaderStateT ixs r
 
-newtype IxStateInstrumentT m s i j a =
+newtype IxStateInstrumentT m i j a =
     IxStateInstrumentT { runIxStateInstrumentT' :: i -> Bool -> m (a, j, Bool) }
 
-runIxStateInstrumentT :: IxStateInstrumentT m s i j a -> i ->  m (a, j, Bool)
+runIxStateInstrumentT :: IxStateInstrumentT m i j a -> i ->  m (a, j, Bool)
 runIxStateInstrumentT m i = runIxStateInstrumentT' m i False
 
 instance Applicative f => IxPointed (IxStateInstrumentT f) where
@@ -228,7 +228,7 @@ instance Monad m => IxMonadState (IxStateInstrumentT m) where
 instance Monad m => IxMonadLift m (IxStateInstrumentT m) where
     ilift ma = IxStateInstrumentT $ \i b -> ma >>= (\a -> return (a, i, b))
 
-instance Monad m => IxMonadWriter (IxStateInstrumentT m) where
+instance Monad m => IxMonadWriter b (IxStateInstrumentT m) where
     itell _ = ireturn ()
 
 instance (Monad m, Monad n) => IxMonadStateHoist (IxStateInstrumentT m) m (IxStateInstrumentT n) n where
@@ -237,61 +237,61 @@ instance (Monad m, Monad n) => IxMonadStateHoist (IxStateInstrumentT m) m (IxSta
       where discard (x, y, _) = (x, y)
             extend  z (x, y)  = (x, y, z)
 
-execIxStateInstrumentT :: Functor m => IxStateInstrumentT m w s t a -> s -> m t
+execIxStateInstrumentT :: Functor m => IxStateInstrumentT m s t a -> s -> m t
 execIxStateInstrumentT ixs s = fmap f (runIxStateInstrumentT ixs s)
   where f (_,b,_) = b
 
-evalIxStateInstrumentT :: Functor m => IxStateInstrumentT m w s t a -> s -> m a
+evalIxStateInstrumentT :: Functor m => IxStateInstrumentT m s t a -> s -> m a
 evalIxStateInstrumentT ixs s = fmap f (runIxStateInstrumentT ixs s)
   where f (a,_,_) = a
 
-data IxWriterT m s i j a = IxWriterT (Maybe s) (forall w. m w i j a)
+data IxWriterT w m i j a = IxWriterT (Maybe w) (m i j a)
 
-noIxWriterT :: (forall w. m w i j a) -> IxWriterT m s i j a
+noIxWriterT :: m i j a -> IxWriterT w m i j a
 noIxWriterT = IxWriterT Nothing
 
-runIxWriterT :: IxWriterT m s i j a -> (Maybe s, m w i j a)
+runIxWriterT :: IxWriterT w m i j a -> (Maybe w, m i j a)
 runIxWriterT (IxWriterT a b) = (a, b)
 
-evalIxWriterT :: IxWriterT m s i j a -> m w i j a
+evalIxWriterT :: IxWriterT w m i j a -> m i j a
 evalIxWriterT = snd . runIxWriterT
 
-execIxWriterT :: IxWriterT m s i j a -> Maybe s
+execIxWriterT :: IxWriterT w m i j a -> Maybe w
 execIxWriterT = fst . runIxWriterT
 
-instance IxPointed m => IxPointed (IxWriterT m) where
+instance IxPointed m => IxPointed (IxWriterT w m) where
     ireturn a = noIxWriterT (ireturn a)
 
-instance IxFunctor m => IxFunctor (IxWriterT m) where
+instance IxFunctor m => IxFunctor (IxWriterT w m) where
     imap f (IxWriterT r m) = IxWriterT r (imap f m)
 
-instance IxApplicative m => IxApplicative (IxWriterT m) where
+instance IxApplicative m => IxApplicative (IxWriterT w m) where
     iap (IxWriterT _ mab) (IxWriterT r ma) = IxWriterT r (iap mab ma)
 
-instance IxMonad m => IxMonad (IxWriterT m) where
+instance IxMonad m => IxMonad (IxWriterT w m) where
     ibind (IxWriterT r ma) f = IxWriterT r (ibind ma (evalIxWriterT . f))
 
-instance IxMonadReader r m => IxMonadReader r (IxWriterT m) where
+instance IxMonadReader r m => IxMonadReader r (IxWriterT w m) where
     iask = noIxWriterT iask
 
-instance IxMonadGet m => IxMonadGet (IxWriterT m) where
+instance IxMonadGet m => IxMonadGet (IxWriterT w m) where
     iget = noIxWriterT iget
 
-instance IxMonadState m => IxMonadState (IxWriterT m) where
+instance IxMonadState m => IxMonadState (IxWriterT w m) where
     iput j = noIxWriterT (iput j)
 
-instance IxMonadLift m n => IxMonadLift m (IxWriterT n) where
+instance IxMonadLift m n => IxMonadLift m (IxWriterT w n) where
     ilift ma = noIxWriterT (ilift ma)
 
-instance IxMonad m => IxMonadWriter (IxWriterT m) where
-    itell t = IxWriterT (Just t) (ireturn ())
+instance IxMonad m => IxMonadWriter w (IxWriterT w m) where
+    itell w = IxWriterT (Just w) (ireturn ())
 
-instance IxMonadStateHoist m p n q => IxMonadStateHoist (IxWriterT m) p (IxWriterT n) q where
+instance IxMonadStateHoist m p n q => IxMonadStateHoist (IxWriterT w m) p (IxWriterT w n) q where
     istateHoist hoist (IxWriterT w m) = IxWriterT w (istateHoist hoist m)
 
 {-
 
-newtype IxMonadicState m s i j a = IxMonadicState { runIxMonadicState :: m i -> m (a, j) }
+newtype IxMonadicState m i j a = IxMonadicState { runIxMonadicState :: m i -> m (a, j) }
 
 pair :: (Applicative f) => f a -> f b -> f (a, b)
 pair fa fb = (,) <$> fa <*> fb

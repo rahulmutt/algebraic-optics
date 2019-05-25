@@ -41,7 +41,7 @@ prism' :: (b -> s) -> (s -> Maybe a) -> Prism s s a b
 prism' f g = prism f (\s -> maybe (Left s) Right $ g s)
 
 -- TODO: Generlize this to s t a b 
-withPrism :: (IxMonadGet n, IxMonadWriter n) => APrism n s t a a -> ((a -> t) -> (s -> Either t a) -> r) -> r 
+withPrism :: (IxMonadGet n, IxMonadWriter (Identity a) n) => APrism n s t a a -> ((a -> t) -> (s -> Either t a) -> r) -> r 
 withPrism prism f = f (runIdentity . bt . Identity) (matching prism)
   where bt b 
           | Just s <- execIxWriterT (prism (imap (pure :: () -> Unit ()) (itell b))) = s
@@ -59,7 +59,7 @@ _Just = prism Just (maybe (Left Nothing) Right)
 _Nothing :: Prism' (Maybe a) ()
 _Nothing = prism' (const Nothing) (maybe (Just ()) (const Nothing))
 
-below :: (IxMonadWriter n, IxMonadState n, Traversable t) => APrism' n s a -> Prism' (t s) (t a)
+below :: (Traversable t) => APrism' (IxWriterT (Identity a) (IxStateT Identity)) s a -> Prism' (t s) (t a)
 below p = prism' (fmap (p #)) (either (const Nothing) Just . traverse (matching p))
 
 -- TODO: Generlize this to s t a b 
@@ -81,16 +81,18 @@ unto f = prism' f (const Nothing)
 un :: (IxMonadState n) => AGetter n s a -> Prism' a s
 un getter = unto (^. getter)
 
-re :: (IxMonadState n, IxMonadWriter n) => AReview n t b -> Getter b t
+re :: AReview t b -> Getter b t
 re rev = to (rev #)
 
-(#) :: forall n s a. (IxMonadState n, IxMonadWriter n) => AReview n s a -> a -> s
+(#) :: AReview s a -> a -> s
 (#) hom a = runIdentity (hom #! a)
 
-(#!) :: forall m n s a. (IxMonadState n, IxMonadWriter n, Monad m) => AReviewM m n s a -> a -> m s
+(#!) :: forall m s a. Monad m => AReviewM m s a -> a -> m s
 (#!) hom a
-  | Just ms <- execIxWriterT (hom (imap pure (itell (return a))))
+  | Just ms <- execIxWriterT (hom (imap pure (itell n)))
   = ms
   | otherwise = error "Bad review!"
+  where n :: m a
+        n = return a
 
 infixr 8 #, #!

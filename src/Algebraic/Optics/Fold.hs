@@ -81,7 +81,7 @@ filtered f sm =
       then evalIxStateT sm a
       else return mempty1
 
-reversed :: (Monoid1 f, IxFunctor m, IxFunctor n) => Optic' m (ReverseMonoid f) n s t a b -> Optic' m f n s t a b
+reversed :: (Monoid1 f, IxFunctor m, IxFunctor n) => Optic m (ReverseMonoid f) n s t a b -> Optic m f n s t a b
 reversed revHom sm = imap getReverseMonoid (revHom (imap ReverseMonoid sm))
 
 repeated :: Fold1 a a
@@ -93,7 +93,7 @@ replicated n sm = igetsM (go n)
    where go  0 _ = return mempty1
          go !n a = liftA2 mappend1 (evalIxStateT sm a) (go (n - 1) a)
 
-cycled :: (Semigroup1 f, IxMonadState m) => Optic' m f n s t a b -> Optic' m f n s t a b
+cycled :: (Semigroup1 f, IxMonadState m) => Optic m f n s t a b -> Optic m f n s t a b
 cycled hom sm = iget >>>= go
   where go s = hom sm >>>= (\gx -> 
                iput s >>>= (\_ ->
@@ -101,14 +101,14 @@ cycled hom sm = iget >>>= go
                ireturn (gx `mappend1` hx))))
    
 takingWhile :: (Monoid1 f, IxFunctor m, IxMonadGet n) 
-            => (a -> Bool) -> Optic' m (TakingWhile f) n s t a a -> Optic' m f n s t a a
+            => (a -> Bool) -> Optic m (TakingWhile f) n s t a a -> Optic m f n s t a a
 takingWhile f hom sm = imap getTakingWhile (hom (iget >>>= decideTake))
    where decideTake a
            | f a       = imap TakingWhile sm
            | otherwise = ireturn (TakingWhileTerminated mempty1)
 
 droppingWhile :: (Monoid1 f, IxFunctor m, IxMonadGet n) 
-              => (a -> Bool) -> Optic' m (DroppingWhile f) n s t a a -> Optic' m f n s t a a
+              => (a -> Bool) -> Optic m (DroppingWhile f) n s t a a -> Optic m f n s t a a
 droppingWhile f hom sm = imap computeDroppingWhile (hom (iget >>>= decideDrop))
    where decideDrop a
            | f a       = imap DroppingWhileDropping sm
@@ -198,14 +198,14 @@ ifiltered f sm =
       else return mempty1)
 
 itakingWhile :: (Monoid1 f, IxFunctor m, IxMonadGet n, IxMonadReader i n) 
-            => (i -> a -> Bool) -> Optic' m (TakingWhile f) n s t a a -> Optic' m f n s t a a
+            => (i -> a -> Bool) -> Optic m (TakingWhile f) n s t a a -> Optic m f n s t a a
 itakingWhile f hom sm = imap getTakingWhile (hom (iask >>>= (\i -> iget >>>= (\a -> decideTake i a))))
    where decideTake i a
            | f i a     = imap TakingWhile sm
            | otherwise = ireturn (TakingWhileTerminated mempty1)
 
 idroppingWhile :: (Monoid1 f, IxFunctor m, IxMonadGet n, IxMonadReader i n) 
-               => (i -> a -> Bool) -> Optic' m (DroppingWhile f) n s t a a -> Optic' m f n s t a a
+               => (i -> a -> Bool) -> Optic m (DroppingWhile f) n s t a a -> Optic m f n s t a a
 idroppingWhile f hom sm = imap computeDroppingWhile (hom (iask >>>= (\i -> iget >>>= (\a -> decideDrop i a))))
    where decideDrop i a
            | f i a     = imap DroppingWhileDropping sm

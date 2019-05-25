@@ -43,14 +43,14 @@ itraverseL sm = istateM (fmap (first fst) . mapAccumLM accum (mempty1, 0))
 elementOf :: ( IxMonadStateHoist m (StateT Int p) m' p
              , IxMonadStateHoist n' p n (StateT Int p)
              , Monoid1 f )
-          => Optic' m f n s t a a -> Int -> Optic' m' f n' s t a a
+          => Optic m f n s t a a -> Int -> Optic m' f n' s t a a
 elementOf hom n = elementsOf hom (== n)
 
 -- TODO: Figure out how to make this result indexed
 elementsOf :: ( IxMonadStateHoist m (StateT Int p) m' p
              , IxMonadStateHoist n' p n (StateT Int p)
              , Monoid1 f )
-          => Optic' m f n s t a a -> (Int -> Bool) -> Optic' m' f n' s t a a
+          => Optic m f n s t a a -> (Int -> Bool) -> Optic m' f n' s t a a
 elementsOf hom pred sm = 
   istateHoist g (hom (istateHoist f sm))
   where f q a = do
@@ -123,7 +123,7 @@ ifailover hom f s
 taking :: ( IxMonadStateHoist m (StateT Int p) m' p
           , IxMonadStateHoist n' p n (StateT Int p)
           , Monoid1 f )
-          => Int -> Optic' m f n s t a a -> Optic' m' f n' s t a a
+          => Int -> Optic m f n s t a a -> Optic m' f n' s t a a
 taking n hom sm = 
   istateHoist g (hom (istateHoist f sm))
   where f q a = do
@@ -137,7 +137,7 @@ taking n hom sm =
 dropping :: ( IxMonadStateHoist m (StateT Int p) m' p
             , IxMonadStateHoist n' p n (StateT Int p)
             , Monoid1 f )
-            => Int -> Optic' m f n s t a a -> Optic' m' f n' s t a a
+            => Int -> Optic m f n s t a a -> Optic m' f n' s t a a
 dropping n hom sm = 
   istateHoist g (hom (istateHoist f sm))
   where f q a = do
@@ -149,9 +149,9 @@ dropping n hom sm =
         g q s = fmap fst (runStateT (q s) 1)
 
 failing :: (IxMonadState m, IxFunctor n) 
-        => Optic' m (ProductMonoid (Const Any) f) n s t a b 
-        -> Optic' m f n s t a b 
-        -> Optic' m f n s t a b
+        => Optic m (ProductMonoid (Const Any) f) n s t a b 
+        -> Optic m f n s t a b 
+        -> Optic m f n s t a b
 failing homA homB sm = 
   iget >>>= (\s ->
     homA (imap (\fx -> ProductMonoid (Const (Any True)) fx) sm) >>>= 
@@ -162,9 +162,9 @@ failing homA homB sm =
 
 -- TODO: Verify correctness
 deepOf :: (IxMonadState m, IxFunctor n)
-        => Optic' m f m s t s t 
-        -> Optic' m (ProductMonoid (Const Any) f) n s t a b 
-        -> Optic' m f n s t a b
+        => Optic m f m s t s t 
+        -> Optic m (ProductMonoid (Const Any) f) n s t a b 
+        -> Optic m f n s t a b
 deepOf recHom hom sm = go
   where go = iget >>>= (\s ->
                hom (imap (\fx -> ProductMonoid (Const (Any True)) fx) sm) >>>=
@@ -173,11 +173,11 @@ deepOf recHom hom sm = go
                   then iput s >>>= const (recHom go)
                   else ireturn fx))
 
-ignored :: (Monoid1 f, IxPointed m, Monad p) => Optic' m f (IxReaderStateT i p) s s a b
+ignored :: (Monoid1 f, IxPointed m, Monad p) => Optic m f (IxReaderStateT i p) s s a b
 ignored _ = ireturn mempty1
 
 {-
-partsOf :: (IxFunctor m, IxFunctor n) => Optic' m (Singular f) n s t a a -> Optic' m f n s t [a] [a]
+partsOf :: (IxFunctor m, IxFunctor n) => Optic m (Singular f) n s t a a -> Optic m f n s t [a] [a]
 partsOf hom sm = 
   where sm >>>= (\as -> 
     
@@ -186,8 +186,8 @@ partsOf hom sm =
 
 singular :: ( IxMonadStateHoist m (StateT Bool p) m' p
             , IxMonadStateHoist n' p n (StateT Bool p) )
-           => Optic' m (Singular f) n s t a a 
-           -> Optic' m' f n' s t a a
+           => Optic m (Singular f) n s t a a 
+           -> Optic m' f n' s t a a
 singular hom sm = 
   imap getSingular' (istateHoist g (hom (istateHoist f (imap (Singular . Just) sm))))
   where getSingular' = fromMaybe (error "singular: empty traversal") . getSingular
@@ -200,8 +200,8 @@ singular hom sm =
 
 unsafeSingular :: ( IxMonadStateHoist m (StateT Bool p) m' p
                   , IxMonadStateHoist n' p n (StateT Bool p) )
-               => Optic' m (Singular f) n s t a a 
-               -> Optic' m' f n' s t a a
+               => Optic m (Singular f) n s t a a 
+               -> Optic m' f n' s t a a
 unsafeSingular hom sm = 
   imap getSingular' (istateHoist g (hom (istateHoist f (imap (Singular . Just) sm))))
   where getSingular' = fromMaybe (error "unsafeSingular: empty traversal") . getSingular

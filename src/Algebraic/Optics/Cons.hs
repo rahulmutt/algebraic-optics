@@ -11,7 +11,7 @@
 module Algebraic.Optics.Cons where
 
 import Algebraic.Optics.Internal.Indexed
---import Algebraic.Optics.Fold
+import Algebraic.Optics.Fold
 import Algebraic.Optics.Prism
 import Algebraic.Optics.Type
 import Control.Applicative
@@ -34,7 +34,7 @@ cons :: Cons s s a a => a -> s -> s
 cons a s = _Cons # (a, s) 
 
 uncons :: Cons s s a a => s -> Maybe (a, s)
-uncons _s = error "uncons" --s ^? _Cons
+uncons s = s ^? _Cons
 
 _head :: Cons s s a a => Traversal' s a
 _head sm = 
@@ -78,7 +78,7 @@ snoc :: Snoc s s a a => s -> a -> s
 snoc s a = _Snoc # (s, a) 
 
 unsnoc :: Snoc s s a a => s -> Maybe (s, a)
-unsnoc _s = undefined -- s ^? _Snoc
+unsnoc s = s ^? _Snoc
 
 _init :: Snoc s s a a => Traversal' s s
 _init sm = 
