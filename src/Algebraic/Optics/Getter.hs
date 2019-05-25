@@ -30,14 +30,13 @@ ilike :: i -> a -> RelaxedIndexedGetter i s a
 ilike i a sm = ilift (evalIxReaderStateT sm i a)
 
 (^.) :: (IxMonadState n) => s -> AGetter n s a -> a
-(^.) t hom = runIdentity $ evalIxState (hom (imap pure iget)) t
+(^.) t hom = runIdentity ((^.!) t hom)
 
 (^.!) :: (IxMonadState n, Monad m) => s -> AGetterM m n s a -> m a
 (^.!) t hom = fmap runIdentity $ evalIxStateT (hom (imap pure iget)) t
 
 (^@.) :: (IxMonadState n, IxMonadReader i n) => s -> AGetter n s a -> (i, a)
-(^@.) t hom = runIdentity $ evalIxState (hom n) t
-  where n = iaskstate (\i a -> (pure (i, a), a))
+(^@.) t hom = runIdentity ((^@.!) t hom)
 
 (^@.!) :: (IxMonadState n, IxMonadReader i n, Monad m) => s -> AGetterM m n s a -> m (i, a)
 (^@.!) t hom = fmap runIdentity $ evalIxStateT (hom n) t

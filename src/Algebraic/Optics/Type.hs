@@ -49,6 +49,9 @@ type APrism n s t a b = forall f. (Monoid1 f) => APrismF f n s t a b
 type APrismF' f n s a = APrismF f n s s a a
 type APrismF f n s t a b = Optic (IxWriterT (Identity t) (IxStateT Identity)) f n s t a b
 
+type ARawPrism' s a = ARawPrism s s a a
+type ARawPrism s t a b = APrism (IxWriterT (Identity b) (IxStateT Identity)) s t a b
+
 type Prism' s a = Prism s s a a
 type Prism s t a b = PrismM Identity s t a b
 
@@ -56,7 +59,21 @@ type PrismM' m s a = PrismM m s s a a
 type PrismM m s t a b = forall im f. (IxMonadState im, IxMonadWriter (m t) im, IxMonadLift m im, Monoid1 f) 
                        => Optic im f (IxWriterT (m b) (IxStateT m)) s t a b
 
-type Iso s t a b = forall m f n. (IxMonadState m, IxMonadLift n m) => Optic m f (IxStateT n) s t a b
+type Iso' s a = Iso s s a a
+type Iso s t a b = IsoM Identity s t a b
+
+type IsoM' m s a = IsoM m s s a a
+type IsoM m s t a b = forall im f. (IxMonadState im, IxMonadWriter (m t) im, IxMonadLift m im) 
+                       => Optic im f (IxWriterT (m b) (IxStateT m)) s t a b
+
+type AnIso' n s a = AnIso n s s a a
+type AnIso n s t a b = forall f. AnIsoF f n s t a b
+
+type AnIsoF' f n s a = AnIsoF f n s s a a
+type AnIsoF f n s t a b = Optic (IxWriterT (Identity t) (IxStateT Identity)) f n s t a b
+
+type ARawIso' s a = ARawIso s s a a
+type ARawIso s t a b = AnIso (IxWriterT (Identity b) (IxStateT Identity)) s t a b
 
 type Lens' s a = Lens s s a a
 type Lens s t a b = forall m f n. (IxMonadState m, IxMonadLift n m) => Optic m f (IxStateT n) s t a b

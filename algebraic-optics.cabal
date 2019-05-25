@@ -49,6 +49,7 @@ library
                        DefaultSignatures
                        GeneralizedNewtypeDeriving
                        RecursiveDo
+                       TupleSections
 
 test-suite unit-tests
   type:                exitcode-stdio-1.0
