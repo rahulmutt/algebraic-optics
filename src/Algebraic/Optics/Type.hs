@@ -40,16 +40,18 @@ type AGetterM m n s a = AFoldM m Identity n s a
 type ASetter n s t a b = ASetterM Identity n s t a b
 type ASetterM m n s t a b =  Optic' (IxStateT m) Unit n s t a b
 
-type AReview n s a = Optic (IxWriterT (IxStateT Identity)) s Unit n a s s a a
+type AReview n s a = AReviewM Identity n s a
 type AReviewM m n s a = Optic (IxWriterT (IxStateT m)) (m s) Unit n (m a) s s a a
 
+type APrism' f n s a = APrism f n s s a a
+type APrism f n s t a b = Optic (IxWriterT (IxStateT Identity)) t f n b s t a b
+
 type Prism' s a = Prism s s a a
-type Prism s t a b = forall m f i. (IxMonadState m, IxMonadWriter m, IxMonadLift Identity m, Monoid1 f) 
-                   => Optic m t f (IxWriterT (IxStateT Identity)) i s t a b
+type Prism s t a b = PrismM Identity s t a b
 
 type PrismM' m s a = PrismM m s s a a
 type PrismM m s t a b = forall im f i. (IxMonadState im, IxMonadWriter im, IxMonadLift m im, Monoid1 f) 
-                       => Optic im (m t) f (IxWriterT (IxStateT m)) (m i) s t a b
+                       => Optic im (m t) f (IxWriterT (IxStateT m)) i s t a b
 
 type Iso s t a b = forall m f n. (IxMonadState m, IxMonadLift n m) => Optic' m f (IxStateT n) s t a b
 

@@ -18,7 +18,6 @@ import Algebraic.Optics.Fold      as X
 import Algebraic.Optics.Getter    as X
 import Algebraic.Optics.Lens      as X
 import Algebraic.Optics.Prism     as X
-import Algebraic.Optics.Review    as X
 import Algebraic.Optics.Setter    as X
 import Algebraic.Optics.Traversal as X
 import Algebraic.Optics.Type      as X

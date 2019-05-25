@@ -13,7 +13,6 @@ module Algebraic.Optics.Cons where
 import Algebraic.Optics.Internal.Indexed
 --import Algebraic.Optics.Fold
 import Algebraic.Optics.Prism
-import Algebraic.Optics.Review
 import Algebraic.Optics.Type
 import Control.Applicative
 

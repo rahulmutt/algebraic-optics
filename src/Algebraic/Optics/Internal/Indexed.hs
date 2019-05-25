@@ -245,15 +245,19 @@ evalIxStateInstrumentT :: Functor m => IxStateInstrumentT m w s t a -> s -> m a
 evalIxStateInstrumentT ixs s = fmap f (runIxStateInstrumentT ixs s)
   where f (a,_,_) = a
 
-data IxWriterT m s i j a = 
-    IxWriterT { getIxReturn :: Maybe s
-              , getIxMonad  :: forall w. m w i j a }
+data IxWriterT m s i j a = IxWriterT (Maybe s) (forall w. m w i j a)
 
 noIxWriterT :: (forall w. m w i j a) -> IxWriterT m s i j a
 noIxWriterT = IxWriterT Nothing
 
 runIxWriterT :: IxWriterT m s i j a -> (Maybe s, m w i j a)
-runIxWriterT ret = (getIxReturn ret, getIxMonad ret)
+runIxWriterT (IxWriterT a b) = (a, b)
+
+evalIxWriterT :: IxWriterT m s i j a -> m w i j a
+evalIxWriterT = snd . runIxWriterT
+
+execIxWriterT :: IxWriterT m s i j a -> Maybe s
+execIxWriterT = fst . runIxWriterT
 
 instance IxPointed m => IxPointed (IxWriterT m) where
     ireturn a = noIxWriterT (ireturn a)
@@ -265,7 +269,7 @@ instance IxApplicative m => IxApplicative (IxWriterT m) where
     iap (IxWriterT _ mab) (IxWriterT r ma) = IxWriterT r (iap mab ma)
 
 instance IxMonad m => IxMonad (IxWriterT m) where
-    ibind (IxWriterT r ma) f = IxWriterT r (ibind ma (getIxMonad . f))
+    ibind (IxWriterT r ma) f = IxWriterT r (ibind ma (evalIxWriterT . f))
 
 instance IxMonadReader r m => IxMonadReader r (IxWriterT m) where
     iask = noIxWriterT iask

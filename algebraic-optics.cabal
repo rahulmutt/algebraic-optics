@@ -22,7 +22,6 @@ library
                        Algebraic.Optics.Iso  
                        Algebraic.Optics.Lens      
                        Algebraic.Optics.Prism     
-                       Algebraic.Optics.Review    
                        Algebraic.Optics.Setter    
                        Algebraic.Optics.Traversal 
                        Algebraic.Optics.Tuple 

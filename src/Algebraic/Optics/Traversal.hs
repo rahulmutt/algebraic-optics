@@ -99,6 +99,7 @@ mapAccumLOf hom f acc0 s = swap (runState (execIxStateT (hom (istateM g)) s) acc
           b <- state (\acc -> swap (f acc a))
           return (pure (), b)
 
+-- TODO: This currently hangs. Need to figure out why the reverse state monad doesn't work here.
 mapAccumROf :: (IxMonadState n, IxMonadLift (ReverseState acc) n) 
             => ATraversal (ReverseState acc) Unit n s t a b -> (acc -> a -> (acc, b)) -> acc -> s -> (acc, t) 
 mapAccumROf hom f acc0 s = swap (runReverseState (execIxStateT (hom (istateM g)) s) acc0)
@@ -175,8 +176,13 @@ deepOf recHom hom sm = go
 ignored :: (Monoid1 f, IxPointed m, Monad p) => Optic' m f (IxReaderStateT i p) s s a b
 ignored _ = ireturn mempty1
 
--- partsOf :: (IxFunctor m, IxFunctor n) => Optic' m (Singular f) n s t a a -> Optic' m f n s t [a] [a]
--- partsOf hom sm = 
+{-
+partsOf :: (IxFunctor m, IxFunctor n) => Optic' m (Singular f) n s t a a -> Optic' m f n s t [a] [a]
+partsOf hom sm = 
+  where sm >>>= (\as -> 
+    
+    )
+-}
 
 singular :: ( IxMonadStateHoist m (StateT Bool p) m' p
             , IxMonadStateHoist n' p n (StateT Bool p) )
